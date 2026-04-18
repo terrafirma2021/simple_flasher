@@ -22,7 +22,7 @@
           <p class="lead">Use Brave. Connect in flash mode. Choose online or offline firmware.</p>
           <div class="hero-notes">
             <p class="hero-note hero-note-strong">Brave browser required</p>
-            <p class="hero-note">Encrypted flash enabled</p>
+            <p id="encryptHeroNote" class="hero-note">Encrypted flash enabled</p>
           </div>
         </div>
         <button
@@ -82,25 +82,41 @@
             </div>
           </div>
 
-          <div class="toggle-row" role="tablist" aria-label="Firmware source">
-            <button
-              id="onlineModeButton"
-              class="toggle-button is-active"
-              type="button"
-              data-mode="online"
-              aria-pressed="true"
-            >
-              Online
-            </button>
-            <button
-              id="offlineModeButton"
-              class="toggle-button"
-              type="button"
-              data-mode="offline"
-              aria-pressed="false"
-            >
-              Offline
-            </button>
+          <div class="slider-stack">
+            <label class="slider-field">
+              <span>Firmware source</span>
+              <button
+                id="firmwareModeSlider"
+                class="mode-slider"
+                type="button"
+                role="switch"
+                aria-label="Toggle firmware source"
+                aria-checked="false"
+                data-mode="online"
+              >
+                <span class="mode-slider-label" data-mode-label="online">Online</span>
+                <span class="mode-slider-label" data-mode-label="offline">Offline</span>
+              </button>
+              <p id="firmwareModeNote" class="field-note">Online firmware list</p>
+            </label>
+
+            <label class="slider-field">
+              <span>Prevision</span>
+              <button
+                id="previsionToggle"
+                class="switch-slider"
+                type="button"
+                role="switch"
+                aria-label="Toggle prevision mode"
+                aria-checked="false"
+              >
+                <span class="switch-slider-track"></span>
+                <span id="previsionToggleLabel" class="switch-slider-copy">Off</span>
+              </button>
+              <p id="previsionNote" class="field-note">
+                Encrypted flash enabled.
+              </p>
+            </label>
           </div>
 
           <div id="onlinePanel" class="firmware-panel">

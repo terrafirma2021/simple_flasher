@@ -9,6 +9,7 @@ const FLASH_BAUD_RATE = 921600;
 const state = {
   firmwareMode: "online",
   firmwareList: [],
+  previsionEnabled: false,
   selectedFile: null,
   port: null,
   transport: null,
@@ -26,17 +27,21 @@ const elements = {
   connectButton: document.querySelector("#connectButton"),
   connectionMode: document.querySelector("#connectionMode"),
   disconnectButton: document.querySelector("#disconnectButton"),
+  encryptHeroNote: document.querySelector("#encryptHeroNote"),
   firmwareMeta: document.querySelector("#firmwareMeta"),
+  firmwareModeNote: document.querySelector("#firmwareModeNote"),
+  firmwareModeSlider: document.querySelector("#firmwareModeSlider"),
   firmwareSelect: document.querySelector("#firmwareSelect"),
   flashOfflineButton: document.querySelector("#flashOfflineButton"),
   flashOnlineButton: document.querySelector("#flashOnlineButton"),
   logOutput: document.querySelector("#logOutput"),
   offlineFileInput: document.querySelector("#offlineFileInput"),
   offlineFileMeta: document.querySelector("#offlineFileMeta"),
-  offlineModeButton: document.querySelector("#offlineModeButton"),
   offlinePanel: document.querySelector("#offlinePanel"),
-  onlineModeButton: document.querySelector("#onlineModeButton"),
   onlinePanel: document.querySelector("#onlinePanel"),
+  previsionNote: document.querySelector("#previsionNote"),
+  previsionToggle: document.querySelector("#previsionToggle"),
+  previsionToggleLabel: document.querySelector("#previsionToggleLabel"),
   progressBar: document.querySelector("#progressBar"),
   progressLabel: document.querySelector("#progressLabel"),
   refreshListButton: document.querySelector("#refreshListButton"),
@@ -121,6 +126,10 @@ function safeText(value) {
   return value || "Not connected";
 }
 
+function isEncryptedFlashEnabled() {
+  return !state.previsionEnabled;
+}
+
 function renderFirmwareList() {
   const { firmwareList } = state;
   const select = elements.firmwareSelect;
@@ -188,28 +197,32 @@ function render() {
   elements.disconnectButton.disabled = disconnectDisabled;
   elements.flashOnlineButton.disabled = onlineDisabled;
   elements.flashOfflineButton.disabled = offlineDisabled;
+  elements.firmwareModeSlider.disabled = state.isBusy;
+  elements.previsionToggle.disabled = state.isBusy;
   elements.refreshListButton.disabled = state.isBusy;
   elements.firmwareSelect.disabled = state.isBusy || !state.firmwareList.length;
   elements.offlineFileInput.disabled = state.isBusy;
   elements.onlinePanel.hidden = state.firmwareMode !== "online";
   elements.offlinePanel.hidden = state.firmwareMode !== "offline";
-
-  elements.onlineModeButton.classList.toggle(
-    "is-active",
-    state.firmwareMode === "online",
-  );
-  elements.offlineModeButton.classList.toggle(
-    "is-active",
-    state.firmwareMode === "offline",
-  );
-  elements.onlineModeButton.setAttribute(
-    "aria-pressed",
-    String(state.firmwareMode === "online"),
-  );
-  elements.offlineModeButton.setAttribute(
-    "aria-pressed",
+  elements.firmwareModeSlider.dataset.mode = state.firmwareMode;
+  elements.firmwareModeSlider.setAttribute(
+    "aria-checked",
     String(state.firmwareMode === "offline"),
   );
+  elements.firmwareModeNote.textContent =
+    state.firmwareMode === "online" ? "Online firmware list" : "Local .bin file";
+  elements.previsionToggle.classList.toggle("is-active", state.previsionEnabled);
+  elements.previsionToggle.setAttribute(
+    "aria-checked",
+    String(state.previsionEnabled),
+  );
+  elements.previsionToggleLabel.textContent = state.previsionEnabled ? "On" : "Off";
+
+  const encryptCopy = isEncryptedFlashEnabled()
+    ? "Encrypted flash enabled."
+    : "Encrypted flash disabled for prevision mode.";
+  elements.previsionNote.textContent = encryptCopy;
+  elements.encryptHeroNote.textContent = encryptCopy;
 
   if (state.isBusy) {
     updateStatus("Working", "warning");
@@ -532,7 +545,12 @@ async function flashBuffer(buffer, label) {
 
   try {
     appendLog(`Preparing ${label}...`);
-    appendLog("Encrypted flashing is enabled for this build.");
+    state.loader.encryptedFlashEnabled = isEncryptedFlashEnabled();
+    appendLog(
+      isEncryptedFlashEnabled()
+        ? "Encrypted flashing is enabled for this flash."
+        : "Prevision mode enabled. Encrypted flashing is disabled for this flash.",
+    );
 
     const flashOptions = createFlashOptions(buffer);
     await state.loader.writeFlash(flashOptions);
@@ -615,6 +633,17 @@ function setFirmwareMode(mode) {
   render();
 }
 
+function handleFirmwareModeSliderClick(event) {
+  const bounds = elements.firmwareModeSlider.getBoundingClientRect();
+  const midpoint = bounds.left + bounds.width / 2;
+  setFirmwareMode(event.clientX >= midpoint ? "offline" : "online");
+}
+
+function togglePrevisionMode() {
+  state.previsionEnabled = !state.previsionEnabled;
+  render();
+}
+
 function attachEvents() {
   elements.clearLogButton.addEventListener("click", () => {
     elements.logOutput.textContent = "";
@@ -622,11 +651,11 @@ function attachEvents() {
   elements.connectButton.addEventListener("click", connectDevice);
   elements.disconnectButton.addEventListener("click", disconnectDevice);
   elements.firmwareSelect.addEventListener("change", updateSelectedFirmwareMeta);
+  elements.firmwareModeSlider.addEventListener("click", handleFirmwareModeSliderClick);
   elements.flashOfflineButton.addEventListener("click", flashSelectedOfflineFirmware);
   elements.flashOnlineButton.addEventListener("click", flashSelectedOnlineFirmware);
   elements.offlineFileInput.addEventListener("change", handleOfflineFileSelection);
-  elements.offlineModeButton.addEventListener("click", () => setFirmwareMode("offline"));
-  elements.onlineModeButton.addEventListener("click", () => setFirmwareMode("online"));
+  elements.previsionToggle.addEventListener("click", togglePrevisionMode);
   elements.refreshListButton.addEventListener("click", fetchFirmwareList);
   elements.themeToggle.addEventListener("click", toggleTheme);
 
@@ -645,7 +674,8 @@ function attachEvents() {
 async function init() {
   appendLog("Simple flasher ready.");
   appendLog("Desktop Brave is required for flashing.");
-  appendLog("This build always requests encrypted flash writes.");
+  appendLog("Prevision is off by default.");
+  appendLog("Encrypted flash is enabled while prevision stays off.");
 
   const braveState = await detectBrave();
   state.isBrave = braveState.isBrave;

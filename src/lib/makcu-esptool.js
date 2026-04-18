@@ -1,6 +1,8 @@
 import { ESPLoader as BaseESPLoader, Transport } from "esptool-js";
 
 class MAKCUESPLoader extends BaseESPLoader {
+  encryptedFlashEnabled = true;
+
   async connect(mode = "default_reset", attempts = mode === "no_reset" ? 2 : 7, detecting = true) {
     return super.connect(mode, attempts, detecting);
   }
@@ -77,7 +79,10 @@ class MAKCUESPLoader extends BaseESPLoader {
     pkt = this._appendArray(pkt, this._intToByteArray(offset));
 
     if (this.IS_STUB === false) {
-      pkt = this._appendArray(pkt, this._intToByteArray(1));
+      pkt = this._appendArray(
+        pkt,
+        this._intToByteArray(this.encryptedFlashEnabled ? 1 : 0),
+      );
     }
 
     await this.checkCommand("enter Flash download mode", this.ESP_FLASH_BEGIN, pkt, undefined, timeout);
@@ -119,7 +124,10 @@ class MAKCUESPLoader extends BaseESPLoader {
         this.chip.CHIP_NAME === "ESP32-C2") &&
       this.IS_STUB === false
     ) {
-      pkt = this._appendArray(pkt, this._intToByteArray(1));
+      pkt = this._appendArray(
+        pkt,
+        this._intToByteArray(this.encryptedFlashEnabled ? 1 : 0),
+      );
     }
 
     await this.checkCommand(

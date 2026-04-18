@@ -50,6 +50,7 @@ body {
     linear-gradient(180deg, var(--bg-soft), var(--bg));
   color: var(--text);
   padding: 0;
+  font-size: 0.82rem;
 }
 
 button,
@@ -61,17 +62,17 @@ select {
 .page-shell {
   width: min(1120px, calc(100% - 2rem));
   margin: 0 auto;
-  padding: 1.1rem 0 2rem;
+  padding: 0.8rem 0 1.5rem;
 }
 
 .hero {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1.5rem;
-  padding: 1.1rem 1.25rem 1.25rem;
+  gap: 1rem;
+  padding: 0.8rem 0.95rem 0.95rem;
   border: 1px solid var(--panel-border);
-  border-radius: 22px;
+  border-radius: 18px;
   background:
     linear-gradient(140deg, rgba(255, 255, 255, 0.18), transparent 50%),
     var(--panel);
@@ -85,11 +86,11 @@ select {
 
 .eyebrow,
 .panel-kicker {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.28rem;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  font-size: 0.74rem;
+  font-size: 0.56rem;
   font-weight: 700;
 }
 
@@ -101,36 +102,37 @@ p {
 
 h1 {
   max-width: none;
-  font-size: clamp(2rem, 4vw, 3.4rem);
-  line-height: 1;
+  font-size: clamp(1.1rem, 2.2vw, 1.8rem);
+  line-height: 1.05;
   letter-spacing: -0.05em;
 }
 
 h2 {
-  font-size: 1.35rem;
+  font-size: 0.9rem;
   letter-spacing: -0.03em;
 }
 
 .lead {
-  margin-top: 0.85rem;
+  margin-top: 0.5rem;
   max-width: 48ch;
   color: var(--muted);
   line-height: 1.45;
+  font-size: 0.74rem;
 }
 
 .hero-notes {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem;
-  margin-top: 0.95rem;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
 }
 
 .hero-note {
-  padding: 0.6rem 0.85rem;
+  padding: 0.36rem 0.56rem;
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.66rem;
 }
 
 .hero-note-strong {
@@ -141,14 +143,14 @@ h2 {
 .layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  margin-top: 0.9rem;
+  gap: 0.75rem;
+  margin-top: 0.7rem;
 }
 
 .panel {
-  padding: 1.1rem;
+  padding: 0.82rem;
   border: 1px solid var(--panel-border);
-  border-radius: 20px;
+  border-radius: 16px;
   background: var(--panel);
   box-shadow: var(--shadow);
   backdrop-filter: blur(14px);
@@ -162,26 +164,26 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
 }
 
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.55rem 0.9rem;
+  gap: 0.32rem;
+  padding: 0.38rem 0.62rem;
   border-radius: 999px;
   background: var(--status);
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.68rem;
   font-weight: 600;
 }
 
 .status-badge::before {
   content: "";
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 0.38rem;
+  height: 0.38rem;
   border-radius: 50%;
   background: currentColor;
   opacity: 0.8;
@@ -194,22 +196,24 @@ h2 {
 }
 
 .callout {
-  margin-bottom: 1rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.72rem;
 }
 
 .button-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.8rem;
+  gap: 0.55rem;
+  margin-top: 0.6rem;
 }
 
 .primary-button,
 .ghost-button,
 .toggle-button {
-  border-radius: 12px;
-  padding: 0.78rem 1rem;
+  border-radius: 10px;
+  padding: 0.5rem 0.72rem;
   cursor: pointer;
+  font-size: 0.7rem;
   transition:
     transform 160ms ease,
     background 160ms ease,
@@ -237,14 +241,14 @@ h2 {
 
 .toggle-row {
   display: inline-flex;
-  gap: 0.55rem;
-  padding: 0.35rem;
-  border-radius: 16px;
+  gap: 0.35rem;
+  padding: 0.22rem;
+  border-radius: 12px;
   background: var(--status);
 }
 
 .toggle-button {
-  min-width: 120px;
+  min-width: 88px;
   background: transparent;
   color: var(--muted);
   font-weight: 700;
@@ -258,22 +262,28 @@ h2 {
 
 .field {
   display: grid;
-  gap: 0.55rem;
-  margin-top: 0.9rem;
+  gap: 0.35rem;
+  margin-top: 0.7rem;
 }
 
 .field span {
   font-weight: 600;
+  font-size: 0.72rem;
 }
 
 select,
 input[type="file"] {
   width: 100%;
   border: 1px solid var(--panel-border);
-  border-radius: 14px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.45);
   color: var(--text);
-  padding: 0.85rem 0.95rem;
+  padding: 0.58rem 0.7rem;
+  font-size: 0.72rem;
+}
+
+select {
+  color-scheme: light;
 }
 
 [data-theme="dark"] select,
@@ -281,27 +291,49 @@ input[type="file"] {
   background: rgba(255, 255, 255, 0.04);
 }
 
+[data-theme="dark"] select {
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background: var(--bg-soft);
+  color: var(--text);
+}
+
+[data-theme="dark"] select option,
+[data-theme="dark"] select optgroup {
+  background: #241b15;
+  color: #f5eee4;
+}
+
+[data-theme="dark"] select option:checked {
+  background: #4a2b1d;
+  color: #fff3e8;
+}
+
 .firmware-panel {
-  margin-top: 1rem;
+  margin-top: 0.7rem;
 }
 
 .progress-card {
-  margin-top: 1rem;
-  padding: 0.9rem;
-  border-radius: 16px;
+  margin-top: 0.7rem;
+  padding: 0.62rem;
+  border-radius: 12px;
   background: var(--status);
 }
 
 .progress-labels {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.65rem;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
   font-weight: 600;
+  font-size: 0.68rem;
 }
 
 .progress-track {
-  height: 12px;
+  height: 8px;
   border-radius: 999px;
   overflow: hidden;
   background: rgba(128, 128, 128, 0.16);
@@ -318,37 +350,38 @@ input[type="file"] {
 .device-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.8rem;
-  margin: 1rem 0 0;
+  gap: 0.55rem;
+  margin: 0.7rem 0 0;
 }
 
 .device-card {
-  padding: 0.85rem;
-  border-radius: 16px;
+  padding: 0.62rem;
+  border-radius: 12px;
   background: var(--status);
 }
 
 .device-card dt {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.68rem;
 }
 
 .device-card dd {
-  margin: 0.4rem 0 0;
+  margin: 0.22rem 0 0;
   font-weight: 700;
+  font-size: 0.74rem;
 }
 
 .log-output {
-  min-height: 300px;
-  max-height: 420px;
+  min-height: 220px;
+  max-height: 320px;
   overflow: auto;
-  padding: 0.95rem;
-  border-radius: 16px;
+  padding: 0.72rem;
+  border-radius: 12px;
   background: #140f0c;
   color: #f1ddcf;
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.89rem;
-  line-height: 1.65;
+  font-size: 0.68rem;
+  line-height: 1.45;
   white-space: pre-wrap;
   border: 1px solid rgba(255, 255, 255, 0.06);
 }

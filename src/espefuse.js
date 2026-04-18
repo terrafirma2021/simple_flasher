@@ -292,20 +292,26 @@ function keyBytesEqual(left, right) {
   return true;
 }
 
-function getSortedChipFields(config) {
-  return Object.values(config.fields).sort((left, right) => {
-    if (left.block !== right.block) return left.block - right.block;
-    if (left.word !== right.word) return left.word - right.word;
-    if (left.bitOffset !== right.bitOffset) return left.bitOffset - right.bitOffset;
-    return left.name.localeCompare(right.name);
-  });
+function importantFieldsForChip(chipName) {
+  return [
+    "SPI_BOOT_CRYPT_CNT",
+    "DIS_DOWNLOAD_MANUAL_ENCRYPT",
+    "ENABLE_SECURITY_DOWNLOAD",
+    "DIS_DOWNLOAD_ICACHE",
+    "DIS_DOWNLOAD_DCACHE",
+    "HARD_DIS_JTAG",
+    "DIS_USB_JTAG",
+    chipName === "ESP32-S3" ? "DIS_DIRECT_BOOT" : "DIS_LEGACY_SPI_BOOT",
+    "RD_DIS",
+  ];
 }
 
 async function readEfuseSummary(loader) {
   const config = ensureSupportedChip(loader);
   const block0 = config.blocks.find((block) => block.index === 0);
   const block0Words = await readBlockWords(loader, block0);
-  const fieldRows = getSortedChipFields(config).map((field) => {
+  const fieldRows = importantFieldsForChip(config.chipName).map((fieldName) => {
+    const field = config.fields[fieldName];
     const rawValue = getFieldValue(block0Words, field);
     return {
       name: field.name,
@@ -331,10 +337,6 @@ async function readEfuseSummary(loader) {
       readProtected: block.readProtectBit !== null ? ((rdDisValue >> block.readProtectBit) & 0x1) === 1 : false,
       rawWords: words,
     });
-  }
-
-  for (const block of keyBlocks) {
-    block.stateLabel = block.readProtected && block.isEmpty ? "unreadable" : block.isEmpty ? "empty" : "programmed";
   }
 
   const spiBootCryptCnt = getFieldValue(block0Words, config.fields.SPI_BOOT_CRYPT_CNT);

@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "esptool-js": "^0.5.6"
+    "esptool-js": "^0.5.7"
   },
   "devDependencies": {
     "vite": "^7.1.11"

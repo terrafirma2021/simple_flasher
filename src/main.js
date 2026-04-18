@@ -1,6 +1,12 @@
 import "./styles.css";
 
 import { MAKCUESPLoader, Transport } from "./lib/makcu-esptool.js";
+import {
+  applyDevelopmentProvisioning,
+  getProvisionKeyStatus,
+  normalizeEfuseHexKey,
+  readEfuseSummary,
+} from "./espefuse.js";
 
 const FIRMWARE_API_URL =
   "https://api.github.com/repos/terrafirma2021/MAKCM_v2_files/contents";
@@ -9,6 +15,8 @@ const FLASH_BAUD_RATE = 921600;
 const state = {
   firmwareMode: "online",
   firmwareList: [],
+  efuseBusy: false,
+  efuseSummary: null,
   previsionEnabled: false,
   selectedFile: null,
   port: null,
@@ -27,6 +35,13 @@ const elements = {
   connectButton: document.querySelector("#connectButton"),
   connectionMode: document.querySelector("#connectionMode"),
   disconnectButton: document.querySelector("#disconnectButton"),
+  efuseBurnButton: document.querySelector("#efuseBurnButton"),
+  efuseFieldTable: document.querySelector("#efuseFieldTable"),
+  efuseKeyHelp: document.querySelector("#efuseKeyHelp"),
+  efuseKeyInput: document.querySelector("#efuseKeyInput"),
+  efuseKeyTable: document.querySelector("#efuseKeyTable"),
+  efuseRefreshButton: document.querySelector("#efuseRefreshButton"),
+  efuseStatusGrid: document.querySelector("#efuseStatusGrid"),
   encryptHeroNote: document.querySelector("#encryptHeroNote"),
   firmwareMeta: document.querySelector("#firmwareMeta"),
   firmwareModeNote: document.querySelector("#firmwareModeNote"),
@@ -172,6 +187,163 @@ function updateSelectedFirmwareMeta() {
   elements.firmwareMeta.textContent = `${selected.name} | ${sizeKb} | Source: ${selected.path}`;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function setEfuseBusy(isBusy) {
+  state.efuseBusy = isBusy;
+  render();
+}
+
+function clearEfuseState() {
+  state.efuseSummary = null;
+  state.efuseBusy = false;
+}
+
+function getEfuseKeyStatus() {
+  return getProvisionKeyStatus(state.efuseSummary, elements.efuseKeyInput.value);
+}
+
+function getEfuseCards() {
+  const keyStatus = getEfuseKeyStatus();
+  return [
+    {
+      title: "AES key",
+      state:
+        keyStatus.status === "matches"
+          ? "ready"
+          : keyStatus.status === "different" || keyStatus.status === "occupied"
+            ? "blocked"
+            : "pending",
+      value:
+        keyStatus.status === "matches"
+          ? "Ready"
+          : keyStatus.status === "different" || keyStatus.status === "occupied"
+            ? "Blocked"
+            : "Pending",
+      note: keyStatus.message,
+    },
+    {
+      title: "Flash encryption dev mode",
+      state: state.efuseSummary?.flashEncryptionEnabled ? "ready" : "pending",
+      value: state.efuseSummary?.flashEncryptionEnabled ? "Ready" : "Pending",
+      note: state.efuseSummary
+        ? `SPI_BOOT_CRYPT_CNT = ${state.efuseSummary.spiBootCryptCnt}`
+        : "Read the chip to inspect the flash-encryption counter.",
+    },
+    {
+      title: "--encrypt path",
+      state: state.efuseSummary?.manualEncryptAllowed ? "ready" : state.efuseSummary ? "blocked" : "pending",
+      value: state.efuseSummary?.manualEncryptAllowed ? "Ready" : state.efuseSummary ? "Blocked" : "Pending",
+      note: state.efuseSummary
+        ? state.efuseSummary.manualEncryptAllowed
+          ? "ROM manual encryption is still allowed."
+          : "DIS_DOWNLOAD_MANUAL_ENCRYPT is burned."
+        : "We need DIS_DOWNLOAD_MANUAL_ENCRYPT to stay clear.",
+    },
+    {
+      title: "Secure Download",
+      state: state.efuseSummary?.secureDownloadDisabled ? "ready" : state.efuseSummary ? "blocked" : "pending",
+      value: state.efuseSummary?.secureDownloadDisabled ? "Ready" : state.efuseSummary ? "Blocked" : "Pending",
+      note: state.efuseSummary
+        ? state.efuseSummary.secureDownloadDisabled
+          ? "ENABLE_SECURITY_DOWNLOAD is still clear."
+          : "Secure Download is already enabled and cannot be undone."
+        : "This must stay off for your plaintext --encrypt flow.",
+    },
+  ];
+}
+
+function renderEfuseFieldTable() {
+  if (!state.efuseSummary) {
+    elements.efuseFieldTable.innerHTML =
+      '<p class="efuse-empty">No eFuse data loaded yet.</p>';
+    return;
+  }
+
+  const rows = state.efuseSummary.fieldRows
+    .map(
+      (row) => `
+        <tr>
+          <td class="efuse-mono">${escapeHtml(row.label)}</td>
+          <td class="efuse-mono">${escapeHtml(row.displayValue)}</td>
+          <td>${escapeHtml(row.description)}</td>
+        </tr>
+      `,
+    )
+    .join("");
+
+  elements.efuseFieldTable.innerHTML = `
+    <table class="efuse-table">
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Value</th>
+          <th>Meaning</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function renderEfuseKeyTable() {
+  if (!state.efuseSummary) {
+    elements.efuseKeyTable.innerHTML =
+      '<p class="efuse-empty">No eFuse data loaded yet.</p>';
+    return;
+  }
+
+  const rows = state.efuseSummary.keyBlocks
+    .map(
+      (block) => `
+        <tr>
+          <td class="efuse-mono">${escapeHtml(block.name)}</td>
+          <td>${escapeHtml(block.purposeName)}</td>
+          <td>${block.isEmpty ? "empty" : "programmed"}</td>
+          <td>${block.readProtected ? "no" : "yes"}</td>
+        </tr>
+      `,
+    )
+    .join("");
+
+  elements.efuseKeyTable.innerHTML = `
+    <table class="efuse-table">
+      <thead>
+        <tr>
+          <th>Block</th>
+          <th>Purpose</th>
+          <th>State</th>
+          <th>Readable</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function renderEfuseStatus() {
+  const cards = getEfuseCards();
+  elements.efuseStatusGrid.innerHTML = cards
+    .map(
+      (card) => `
+        <article class="efuse-status-card" data-state="${card.state}">
+          <div class="efuse-status-title">${escapeHtml(card.title)}</div>
+          <div class="efuse-status-value">${escapeHtml(card.value)}</div>
+          <p class="efuse-status-note">${escapeHtml(card.note)}</p>
+        </article>
+      `,
+    )
+    .join("");
+
+  renderEfuseFieldTable();
+  renderEfuseKeyTable();
+}
+
 function render() {
   const connectDisabled = !state.isBrave || state.isBusy || state.isConnected;
   const disconnectDisabled = state.isBusy || !state.isConnected;
@@ -231,6 +403,31 @@ function render() {
   } else {
     updateStatus("Disconnected");
   }
+
+  const keyStatus = getEfuseKeyStatus();
+  const burnBlocked =
+    keyStatus.status === "invalid" ||
+    keyStatus.status === "different" ||
+    keyStatus.status === "occupied" ||
+    !state.efuseSummary?.secureDownloadDisabled ||
+    (state.efuseSummary && !state.efuseSummary.manualEncryptAllowed);
+
+  elements.efuseKeyHelp.textContent = `${normalizeEfuseHexKey(elements.efuseKeyInput.value).length}/64 • ${keyStatus.message}`;
+  elements.efuseRefreshButton.disabled =
+    !state.loader || state.isBusy || state.efuseBusy;
+  elements.efuseRefreshButton.textContent = state.efuseBusy
+    ? "Reading..."
+    : "Read eFuses";
+  elements.efuseBurnButton.disabled =
+    !state.loader ||
+    state.isBusy ||
+    state.efuseBusy ||
+    burnBlocked ||
+    (state.efuseSummary?.provisionReady ?? false);
+  elements.efuseBurnButton.textContent = state.efuseBusy
+    ? "Burning..."
+    : "Burn AES Key + Dev Mode";
+  renderEfuseStatus();
 }
 
 function getTheme() {
@@ -246,6 +443,57 @@ function toggleTheme() {
   const nextTheme = getTheme() === "dark" ? "light" : "dark";
   window.localStorage.setItem("simple-flasher-theme", nextTheme);
   render();
+}
+
+async function refreshEfuseInfo() {
+  if (!state.loader || state.efuseBusy) {
+    return;
+  }
+
+  setEfuseBusy(true);
+  try {
+    appendLog("[eFuse] Reading eFuse summary...");
+    state.efuseSummary = await readEfuseSummary(state.loader);
+    appendLog(
+      `[eFuse] ${state.efuseSummary.chipName}: SPI_BOOT_CRYPT_CNT=${state.efuseSummary.spiBootCryptCnt}, manualEncrypt=${state.efuseSummary.manualEncryptAllowed ? "allowed" : "disabled"}, secureDownload=${state.efuseSummary.secureDownloadDisabled ? "disabled" : "enabled"}.`,
+    );
+  } catch (error) {
+    appendLog(
+      `[eFuse] Read failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  } finally {
+    setEfuseBusy(false);
+  }
+}
+
+async function burnEfuseProvisioning() {
+  if (!state.loader || state.efuseBusy) {
+    return;
+  }
+
+  setEfuseBusy(true);
+  try {
+    appendLog("[eFuse] Starting AES key + dev-mode provisioning...");
+    const result = await applyDevelopmentProvisioning(
+      state.loader,
+      elements.efuseKeyInput.value,
+    );
+    state.efuseSummary = result.summary;
+    if (!result.actions.length) {
+      appendLog("[eFuse] No new eFuse changes were needed.");
+    } else {
+      result.actions.forEach((action) => appendLog(`[eFuse] ${action}`));
+    }
+    if (result.summary.provisionReady) {
+      appendLog("[eFuse] Device is ready for plaintext flashing with --encrypt.");
+    }
+  } catch (error) {
+    appendLog(
+      `[eFuse] Provisioning failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  } finally {
+    setEfuseBusy(false);
+  }
 }
 
 function shouldRetryConnection(error) {
@@ -413,6 +661,7 @@ async function connectDevice() {
         appendLog(
           `Connected to ${loader.chip?.CHIP_NAME || "device"} in flash mode.`,
         );
+        await refreshEfuseInfo();
         render();
         return;
       } catch (error) {
@@ -439,6 +688,7 @@ async function connectDevice() {
 
     throw lastError || new Error("Unable to connect in flash mode.");
   } catch (error) {
+    clearEfuseState();
     appendLog(
       `Connect failed: ${error instanceof Error ? error.message : String(error)}`,
     );
@@ -461,6 +711,7 @@ async function disconnectDevice() {
     state.transport = null;
     state.loader = null;
     state.isConnected = false;
+    clearEfuseState();
     appendLog("Disconnected.");
     setBusy(false);
   }
@@ -563,6 +814,7 @@ async function flashBuffer(buffer, label) {
     state.transport = null;
     state.loader = null;
     state.isConnected = false;
+    clearEfuseState();
   } catch (error) {
     appendLog(
       `Flash failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -650,6 +902,12 @@ function attachEvents() {
   });
   elements.connectButton.addEventListener("click", connectDevice);
   elements.disconnectButton.addEventListener("click", disconnectDevice);
+  elements.efuseBurnButton.addEventListener("click", burnEfuseProvisioning);
+  elements.efuseKeyInput.addEventListener("input", (event) => {
+    event.target.value = normalizeEfuseHexKey(event.target.value);
+    render();
+  });
+  elements.efuseRefreshButton.addEventListener("click", refreshEfuseInfo);
   elements.firmwareSelect.addEventListener("change", updateSelectedFirmwareMeta);
   elements.firmwareModeSlider.addEventListener("click", handleFirmwareModeSliderClick);
   elements.flashOfflineButton.addEventListener("click", flashSelectedOfflineFirmware);
@@ -666,6 +924,7 @@ function attachEvents() {
       state.transport = null;
       state.loader = null;
       state.isConnected = false;
+      clearEfuseState();
       render();
     });
   }

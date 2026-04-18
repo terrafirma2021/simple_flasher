@@ -170,50 +170,6 @@
         <section class="panel panel-wide">
           <div class="panel-header">
             <div>
-              <p class="panel-kicker">Provisioning</p>
-              <h2>eFuse Provisioning</h2>
-            </div>
-            <button id="efuseRefreshButton" class="ghost-button" type="button">
-              Read eFuses
-            </button>
-          </div>
-
-          <p class="callout">
-            Burn only the AES key plus flash-encryption dev mode, while keeping plaintext flashing with <code>--encrypt</code> available.
-          </p>
-
-          <div id="efuseStatusGrid" class="efuse-status-grid"></div>
-
-          <div class="efuse-actions">
-            <label class="field">
-              <span>AES key</span>
-              <input id="efuseKeyInput" class="efuse-input" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="64 hex characters" />
-              <p id="efuseKeyHelp" class="field-note">Enter the 64-character AES key to enable the burn flow.</p>
-            </label>
-            <button id="efuseBurnButton" class="primary-button" type="button">
-              Burn AES Key + Dev Mode
-            </button>
-          </div>
-
-          <div class="efuse-table-grid">
-            <section class="efuse-table-card">
-              <div class="efuse-table-title">eFuse readback</div>
-              <div id="efuseFieldTable" class="efuse-table-wrap">
-                <p class="efuse-empty">No eFuse data loaded yet.</p>
-              </div>
-            </section>
-            <section class="efuse-table-card">
-              <div class="efuse-table-title">Key blocks</div>
-              <div id="efuseKeyTable" class="efuse-table-wrap">
-                <p class="efuse-empty">No eFuse data loaded yet.</p>
-              </div>
-            </section>
-          </div>
-        </section>
-
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <div>
               <p class="panel-kicker">Output</p>
               <h2>Flash log</h2>
             </div>

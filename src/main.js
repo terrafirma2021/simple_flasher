@@ -304,7 +304,7 @@ function renderEfuseKeyTable() {
         <tr>
           <td class="efuse-mono">${escapeHtml(block.name)}</td>
           <td>${escapeHtml(block.purposeName)}</td>
-          <td>${block.isEmpty ? "empty" : "programmed"}</td>
+          <td>${escapeHtml(block.stateLabel)}</td>
           <td>${block.readProtected ? "no" : "yes"}</td>
         </tr>
       `,

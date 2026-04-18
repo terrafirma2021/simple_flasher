@@ -1,35 +1,35 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
 :root {
-  color-scheme: light;
-  --bg: #f3ecdf;
-  --bg-soft: #fbf7ef;
-  --panel: rgba(255, 251, 245, 0.82);
-  --panel-border: rgba(102, 67, 42, 0.16);
-  --text: #20150d;
-  --muted: #6f5d4f;
-  --accent: #bf5b36;
-  --accent-strong: #8e3f22;
-  --accent-soft: rgba(191, 91, 54, 0.14);
-  --shadow: 0 24px 80px rgba(78, 48, 29, 0.16);
-  --status: rgba(32, 21, 13, 0.08);
-  --success: #1e6a49;
-}
-
-[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #17120f;
-  --bg-soft: #221913;
-  --panel: rgba(33, 25, 20, 0.82);
-  --panel-border: rgba(239, 223, 204, 0.12);
-  --text: #f5eee4;
-  --muted: #c0ad99;
-  --accent: #ff8d57;
-  --accent-strong: #ffd1bb;
-  --accent-soft: rgba(255, 141, 87, 0.14);
+  --bg: #0c1016;
+  --bg-soft: #131a23;
+  --panel: rgba(19, 26, 35, 0.82);
+  --panel-border: rgba(192, 208, 226, 0.14);
+  --text: #ecf3fb;
+  --muted: #9fb0c3;
+  --accent: #63b3ff;
+  --accent-strong: #cde7ff;
+  --accent-soft: rgba(99, 179, 255, 0.14);
   --shadow: 0 28px 90px rgba(0, 0, 0, 0.35);
   --status: rgba(255, 255, 255, 0.08);
-  --success: #66d6a3;
+  --success: #67d7ad;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef3f8;
+  --bg-soft: #f8fbfe;
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel-border: rgba(69, 92, 117, 0.16);
+  --text: #122033;
+  --muted: #5f7187;
+  --accent: #2d83d5;
+  --accent-strong: #114b86;
+  --accent-soft: rgba(45, 131, 213, 0.12);
+  --shadow: 0 24px 80px rgba(43, 67, 91, 0.16);
+  --status: rgba(18, 32, 51, 0.08);
+  --success: #1d8a61;
 }
 
 * {
@@ -45,8 +45,8 @@ body {
 body {
   font-family: "Space Grotesk", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(255, 196, 161, 0.28), transparent 35%),
-    radial-gradient(circle at right, rgba(120, 79, 57, 0.16), transparent 28%),
+    radial-gradient(circle at top left, rgba(99, 179, 255, 0.18), transparent 35%),
+    radial-gradient(circle at right, rgba(66, 124, 191, 0.12), transparent 28%),
     linear-gradient(180deg, var(--bg-soft), var(--bg));
   color: var(--text);
   padding: 0;
@@ -286,6 +286,16 @@ select {
   color-scheme: light;
 }
 
+[data-theme="light"] select,
+[data-theme="light"] input[type="file"] {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+select,
+input[type="file"] {
+  background: rgba(255, 255, 255, 0.04);
+}
+
 [data-theme="dark"] select,
 [data-theme="dark"] input[type="file"] {
   background: rgba(255, 255, 255, 0.04);
@@ -297,19 +307,24 @@ select {
 
 select option,
 select optgroup {
-  background: var(--bg-soft);
-  color: var(--text);
+  background: #16202b;
+  color: #ecf3fb;
 }
 
-[data-theme="dark"] select option,
-[data-theme="dark"] select optgroup {
-  background: #241b15;
-  color: #f5eee4;
+[data-theme="light"] select option,
+[data-theme="light"] select optgroup {
+  background: #f8fbfe;
+  color: #122033;
 }
 
-[data-theme="dark"] select option:checked {
-  background: #4a2b1d;
-  color: #fff3e8;
+select option:checked {
+  background: #17324d;
+  color: #eef7ff;
+}
+
+[data-theme="light"] select option:checked {
+  background: #bfdcf8;
+  color: #0e2237;
 }
 
 .firmware-panel {
@@ -377,8 +392,8 @@ select optgroup {
   overflow: auto;
   padding: 0.72rem;
   border-radius: 12px;
-  background: #140f0c;
-  color: #f1ddcf;
+  background: #0b1118;
+  color: #d9e6f3;
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.68rem;
   line-height: 1.45;

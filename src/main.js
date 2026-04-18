@@ -226,15 +226,26 @@ function getTheme() {
     return savedTheme;
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return "dark";
 }
 
 function toggleTheme() {
   const nextTheme = getTheme() === "dark" ? "light" : "dark";
   window.localStorage.setItem("simple-flasher-theme", nextTheme);
   render();
+}
+
+function shouldRetryConnection(error) {
+  const message =
+    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+
+  return (
+    message.includes("invalid response") ||
+    message.includes("read timeout") ||
+    message.includes("failed to connect with the device") ||
+    message.includes("no serial data received") ||
+    message.includes("serial data stream stopped")
+  );
 }
 
 async function fetchFirmwareList() {
@@ -403,12 +414,8 @@ async function connectDevice() {
           `Flash connection attempt ${attempt} failed: ${error instanceof Error ? error.message : String(error)}`,
         );
 
-        const message =
-          error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-        if (
-          attempt < 3 &&
-          (message.includes("invalid response") || message.includes("read timeout"))
-        ) {
+        if (attempt < 3 && shouldRetryConnection(error)) {
+          appendLog("Retrying flash-mode connect...");
           await new Promise((resolve) => window.setTimeout(resolve, 500));
           continue;
         }

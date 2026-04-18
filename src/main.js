@@ -1,6 +1,11 @@
 import "./styles.css";
 
+import { Buffer } from "buffer";
 import { ESPLoader, Transport } from "./vendor/esptool/index.js";
+
+if (typeof globalThis.Buffer === "undefined") {
+  globalThis.Buffer = Buffer;
+}
 
 const FIRMWARE_API_URL =
   "https://api.github.com/repos/terrafirma2021/MAKCM_v2_files/contents";

@@ -5,6 +5,7 @@ import {
   applyProvisionLockdown,
   applyStagedProvisioning,
   getProvisionDebugInfo,
+  getProvisionPreflightInfo,
   getProvisionKeyStatus,
   normalizeEfuseHexKey,
   readEfuseSummary,
@@ -231,6 +232,26 @@ function logProvisionDebugInfo() {
   if (debugInfo.inputKeyHex) {
     appendLog(`[eFuse]   entered: ${debugInfo.inputKeyHex}`);
   }
+}
+
+function logProvisionPreflightInfo() {
+  const preflightInfo = getProvisionPreflightInfo(
+    state.efuseSummary,
+    elements.efuseKeyInput.value,
+  );
+
+  if (!preflightInfo) {
+    return;
+  }
+
+  appendLog(`[eFuse] Preflight entered key: ${preflightInfo.inputKeyHex}`);
+  if (preflightInfo.targetBlockName) {
+    appendLog(`[eFuse] Preflight target block: ${preflightInfo.targetBlockName}`);
+  }
+  appendLog("[eFuse] Expected readable AES key variants after key burn:");
+  preflightInfo.expectedReadableVariants.forEach((variant) => {
+    appendLog(`[eFuse]   ${variant.label}: ${variant.hex}`);
+  });
 }
 
 function getPendingProvisionItems(summary) {
@@ -684,6 +705,7 @@ async function burnEfuseProvisioning() {
   setEfuseBusy("stage1");
   try {
     appendLog("[eFuse] Starting Stage 1 test provisioning...");
+    logProvisionPreflightInfo();
     const result = await applyStagedProvisioning(
       state.loader,
       elements.efuseKeyInput.value,

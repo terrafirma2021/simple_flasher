@@ -1,6 +1,10 @@
 import { ESPLoader as BaseESPLoader, Transport } from "esptool-js";
 
 class MAKCUESPLoader extends BaseESPLoader {
+  async connect(mode = "default_reset", attempts = mode === "no_reset" ? 2 : 7, detecting = true) {
+    return super.connect(mode, attempts, detecting);
+  }
+
   async flashBegin(size, offset) {
     const numBlocks = Math.floor((size + this.FLASH_WRITE_SIZE - 1) / this.FLASH_WRITE_SIZE);
     const eraseSize = this.chip.getEraseSize(offset, size);

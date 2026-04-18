@@ -416,7 +416,7 @@ async function connectDevice() {
 
         if (attempt < 3 && shouldRetryConnection(error)) {
           appendLog("Retrying flash-mode connect...");
-          await new Promise((resolve) => window.setTimeout(resolve, 500));
+          await new Promise((resolve) => window.setTimeout(resolve, 250));
           continue;
         }
 

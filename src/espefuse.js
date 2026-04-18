@@ -144,6 +144,10 @@ function getFieldValue(words, field) {
   return ((words[field.word] >>> 0) >>> field.bitOffset) & getFieldMask(field);
 }
 
+function getOptionalFieldValue(words, field) {
+  return field ? getFieldValue(words, field) : null;
+}
+
 function formatFieldValue(field, value) {
   switch (field.name) {
     case "SPI_BOOT_CRYPT_CNT":
@@ -341,6 +345,18 @@ async function readEfuseSummary(loader) {
   const flashEncryptionEnabled = popcount(spiBootCryptCnt) % 2 === 1;
   const manualEncryptAllowed = getFieldValue(block0Words, config.fields.DIS_DOWNLOAD_MANUAL_ENCRYPT) === 0;
   const secureDownloadDisabled = getFieldValue(block0Words, config.fields.ENABLE_SECURITY_DOWNLOAD) === 0;
+  const downloadIcacheDisabled = getFieldValue(block0Words, config.fields.DIS_DOWNLOAD_ICACHE) === 1;
+  const downloadDcacheDisabled = getFieldValue(block0Words, config.fields.DIS_DOWNLOAD_DCACHE) === 1;
+  const hardJtagDisabled = getFieldValue(block0Words, config.fields.HARD_DIS_JTAG) === 1;
+  const usbJtagDisabled = getOptionalFieldValue(block0Words, config.fields.DIS_USB_JTAG);
+  const directBootField = config.fields.DIS_DIRECT_BOOT || config.fields.DIS_LEGACY_SPI_BOOT || null;
+  const directBootDisabled = getOptionalFieldValue(block0Words, directBootField);
+  const safeHardeningReady =
+    downloadIcacheDisabled &&
+    downloadDcacheDisabled &&
+    hardJtagDisabled &&
+    (usbJtagDisabled === null || usbJtagDisabled === 1) &&
+    (directBootDisabled === null || directBootDisabled === 1);
   const xtsKeyBlock = keyBlocks.find((block) => block.purposeValue === FLASH_ENCRYPTION_PURPOSE) || null;
   const recommendedKeyBlock =
     keyBlocks.find((block) => config.keyBlockIndexes.includes(block.index) && block.isEmpty && (block.purposeValue === 0 || block.purposeValue === null)) ||
@@ -355,31 +371,58 @@ async function readEfuseSummary(loader) {
     spiBootCryptCnt,
     manualEncryptAllowed,
     secureDownloadDisabled,
+    downloadIcacheDisabled,
+    downloadDcacheDisabled,
+    hardJtagDisabled,
+    usbJtagDisabled: usbJtagDisabled === null ? null : usbJtagDisabled === 1,
+    directBootDisabled: directBootDisabled === null ? null : directBootDisabled === 1,
+    safeHardeningReady,
     xtsKeyBlock,
     recommendedKeyBlock,
-    provisionReady: Boolean(xtsKeyBlock) && flashEncryptionEnabled && manualEncryptAllowed && secureDownloadDisabled,
+    provisionStageReady:
+      Boolean(xtsKeyBlock) &&
+      flashEncryptionEnabled &&
+      manualEncryptAllowed &&
+      secureDownloadDisabled &&
+      safeHardeningReady,
+    lockdownReady:
+      Boolean(xtsKeyBlock) &&
+      !xtsKeyBlock.readProtected &&
+      flashEncryptionEnabled &&
+      manualEncryptAllowed &&
+      secureDownloadDisabled &&
+      safeHardeningReady,
   };
 }
 
 function getProvisionKeyStatus(summary, keyValue) {
-  if (!isValidEfuseHexKey(keyValue)) {
-    return { status: "invalid", message: "Enter the 64-character AES key to enable burning." };
-  }
   if (!summary) {
+    if (!isValidEfuseHexKey(keyValue)) {
+      return { status: "invalid", message: "Enter the 64-character AES key to enable burning." };
+    }
     return { status: "ready", message: "AES key is valid. Read eFuses to continue." };
   }
 
-  const desiredKey = normalizeKeyBytes(keyValue);
   const xtsBlock = summary.xtsKeyBlock;
   if (xtsBlock) {
     if (xtsBlock.readProtected) {
-      return { status: "occupied", blockName: xtsBlock.name, message: `${xtsBlock.name} already holds a flash-encryption key and is read-protected.` };
+      return { status: "locked", blockName: xtsBlock.name, message: `${xtsBlock.name} already holds a flash-encryption key and is read-protected.` };
     }
+    if (!isValidEfuseHexKey(keyValue)) {
+      return { status: "burned", blockName: xtsBlock.name, message: `${xtsBlock.name} already holds a flash-encryption key and is still readable.` };
+    }
+    const desiredKey = normalizeKeyBytes(keyValue);
     if (keyBytesEqual(decodeReadableKey(xtsBlock.rawWords), desiredKey)) {
       return { status: "matches", blockName: xtsBlock.name, message: `${xtsBlock.name} already contains this AES key.` };
     }
     return { status: "different", blockName: xtsBlock.name, message: `${xtsBlock.name} already contains a different flash-encryption key.` };
   }
+
+  if (!isValidEfuseHexKey(keyValue)) {
+    return { status: "invalid", message: "Enter the 64-character AES key to enable burning." };
+  }
+
+  const desiredKey = normalizeKeyBytes(keyValue);
 
   const matchingUserBlock = summary.keyBlocks.find((block) => !block.readProtected && !block.isEmpty && keyBytesEqual(decodeReadableKey(block.rawWords), desiredKey));
   if (matchingUserBlock) {
@@ -435,14 +478,49 @@ async function ensureFlashEncryptionDevelopmentMode(loader, config, summary) {
   return burnBlock0FieldValues(loader, config, [{ fieldName: "SPI_BOOT_CRYPT_CNT", value: nextValue }]);
 }
 
-async function applyDevelopmentProvisioning(loader, keyValue) {
+async function ensureSafeHardening(loader, config, summary) {
+  const targets = [
+    { fieldName: "DIS_DOWNLOAD_ICACHE", value: 1, description: "Disabled instruction cache in download mode." },
+    { fieldName: "DIS_DOWNLOAD_DCACHE", value: 1, description: "Disabled data cache in download mode." },
+    { fieldName: "HARD_DIS_JTAG", value: 1, description: "Hard-disabled JTAG." },
+  ];
+
+  if (config.fields.DIS_USB_JTAG && !summary.usbJtagDisabled) {
+    targets.push({ fieldName: "DIS_USB_JTAG", value: 1, description: "Disabled USB JTAG." });
+  }
+
+  if (config.fields.DIS_DIRECT_BOOT && !summary.directBootDisabled) {
+    targets.push({ fieldName: "DIS_DIRECT_BOOT", value: 1, description: "Disabled direct boot." });
+  } else if (config.fields.DIS_LEGACY_SPI_BOOT && !summary.directBootDisabled) {
+    targets.push({ fieldName: "DIS_LEGACY_SPI_BOOT", value: 1, description: "Disabled legacy SPI boot." });
+  }
+
+  const pendingTargets = targets.filter((target) => {
+    switch (target.fieldName) {
+      case "DIS_DOWNLOAD_ICACHE":
+        return !summary.downloadIcacheDisabled;
+      case "DIS_DOWNLOAD_DCACHE":
+        return !summary.downloadDcacheDisabled;
+      case "HARD_DIS_JTAG":
+        return !summary.hardJtagDisabled;
+      default:
+        return true;
+    }
+  });
+
+  if (!pendingTargets.length) return [];
+  await burnBlock0FieldValues(loader, config, pendingTargets.map(({ fieldName, value }) => ({ fieldName, value })));
+  return pendingTargets.map((target) => target.description);
+}
+
+async function applyStagedProvisioning(loader, keyValue) {
   const config = ensureSupportedChip(loader);
   const keyBytes = normalizeKeyBytes(keyValue);
   const actions = [];
   let summary = await readEfuseSummary(loader);
 
   const keyStatus = getProvisionKeyStatus(summary, keyValue);
-  if (["invalid", "different", "occupied"].includes(keyStatus.status)) {
+  if (["invalid", "different", "occupied", "locked"].includes(keyStatus.status)) {
     throw new Error(keyStatus.message);
   }
   if (!summary.secureDownloadDisabled) {
@@ -474,11 +552,49 @@ async function applyDevelopmentProvisioning(loader, keyValue) {
     }
   }
 
+  if (!summary.safeHardeningReady) {
+    const hardeningActions = await ensureSafeHardening(loader, config, summary);
+    if (hardeningActions.length) {
+      actions.push(...hardeningActions);
+      summary = await readEfuseSummary(loader);
+    }
+  }
+
   return { actions, summary };
 }
 
+async function applyProvisionLockdown(loader, keyValue) {
+  const config = ensureSupportedChip(loader);
+  let summary = await readEfuseSummary(loader);
+
+  if (!summary.xtsKeyBlock) {
+    throw new Error("No flash-encryption key block is programmed yet.");
+  }
+  if (summary.xtsKeyBlock.readProtected) {
+    return { actions: [], summary };
+  }
+  if (!summary.provisionStageReady) {
+    throw new Error("Complete Stage 1 test provisioning before locking down RD_DIS.");
+  }
+
+  const keyStatus = getProvisionKeyStatus(summary, keyValue);
+  if (keyStatus.status !== "matches") {
+    throw new Error("Enter the exact readable AES key from Stage 1 before locking down RD_DIS.");
+  }
+
+  const currentRdDis = getFieldValue(summary.block0Words, config.fields.RD_DIS);
+  const nextRdDis = currentRdDis | (1 << summary.xtsKeyBlock.readProtectBit);
+  await burnBlock0FieldValues(loader, config, [{ fieldName: "RD_DIS", value: nextRdDis }]);
+  summary = await readEfuseSummary(loader);
+  return {
+    actions: [`Burned RD_DIS for ${summary.xtsKeyBlock.name}; the AES key is now unreadable.`],
+    summary,
+  };
+}
+
 export {
-  applyDevelopmentProvisioning,
+  applyProvisionLockdown,
+  applyStagedProvisioning,
   getProvisionKeyStatus,
   normalizeEfuseHexKey,
   readEfuseSummary,

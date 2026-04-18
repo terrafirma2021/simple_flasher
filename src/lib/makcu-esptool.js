@@ -5,6 +5,50 @@ class MAKCUESPLoader extends BaseESPLoader {
     return super.connect(mode, attempts, detecting);
   }
 
+  async _connectAttempt(mode = "default_reset", resetStrategy) {
+    if (mode !== "no_reset") {
+      return super._connectAttempt(mode, resetStrategy);
+    }
+
+    this.debug("_connect_attempt " + mode);
+
+    if (resetStrategy) {
+      await resetStrategy.reset();
+    }
+
+    const waitingBytes = this.transport.inWaiting();
+
+    if (waitingBytes > 0) {
+      try {
+        await this.transport.newRead(waitingBytes, 50);
+      } catch (error) {
+        this.debug(`Ignoring stale serial data read error: ${error}`);
+      }
+    }
+
+    let lastError = "";
+
+    for (let i = 0; i < 2; i++) {
+      try {
+        this.debug(`Fast sync connect attempt ${i}`);
+        const resp = await this.sync();
+        this.debug(resp[0].toString());
+        return "success";
+      } catch (error) {
+        this.debug(`Error at fast sync ${error}`);
+        if (error instanceof Error) {
+          lastError = error.message;
+        } else if (typeof error === "string") {
+          lastError = error;
+        } else {
+          lastError = JSON.stringify(error);
+        }
+      }
+    }
+
+    return lastError;
+  }
+
   async flashBegin(size, offset) {
     const numBlocks = Math.floor((size + this.FLASH_WRITE_SIZE - 1) / this.FLASH_WRITE_SIZE);
     const eraseSize = this.chip.getEraseSize(offset, size);

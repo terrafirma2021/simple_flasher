@@ -179,7 +179,7 @@
           </div>
 
           <p class="callout">
-            Stage 1 test-provisions the chip by burning the AES key, safe hardening bits, and flash-encryption dev mode while keeping <code>RD_DIS</code> clear so the key stays readable for verification. Stage 2 lockdown burns <code>RD_DIS</code> for the active XTS key block.
+            Burn only the AES key plus flash-encryption dev mode, while keeping plaintext flashing with <code>--encrypt</code> available.
           </p>
 
           <div id="efuseStatusGrid" class="efuse-status-grid"></div>
@@ -188,16 +188,11 @@
             <label class="field">
               <span>AES key</span>
               <input id="efuseKeyInput" class="efuse-input" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="64 hex characters" />
-              <p id="efuseKeyHelp" class="field-note">Enter the 64-character AES key to enable the staged provisioning flow.</p>
+              <p id="efuseKeyHelp" class="field-note">Enter the 64-character AES key to enable the burn flow.</p>
             </label>
-            <div class="efuse-button-stack">
-              <button id="efuseBurnButton" class="primary-button" type="button">
-                Stage 1: Test Provision
-              </button>
-              <button id="efuseLockButton" class="ghost-button" type="button">
-                Stage 2: Lockdown
-              </button>
-            </div>
+            <button id="efuseBurnButton" class="primary-button" type="button">
+              Burn AES Key + Dev Mode
+            </button>
           </div>
 
           <div class="efuse-table-grid">

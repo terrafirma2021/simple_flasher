@@ -2,8 +2,7 @@ import "./styles.css";
 
 import { MAKCUESPLoader, Transport } from "./lib/makcu-esptool.js";
 import {
-  applyProvisionLockdown,
-  applyStagedProvisioning,
+  applyDevelopmentProvisioning,
   getProvisionKeyStatus,
   normalizeEfuseHexKey,
   readEfuseSummary,
@@ -17,7 +16,6 @@ const state = {
   firmwareMode: "online",
   firmwareList: [],
   efuseBusy: false,
-  efuseBusyAction: null,
   efuseSummary: null,
   previsionEnabled: false,
   selectedFile: null,
@@ -42,7 +40,6 @@ const elements = {
   efuseKeyHelp: document.querySelector("#efuseKeyHelp"),
   efuseKeyInput: document.querySelector("#efuseKeyInput"),
   efuseKeyTable: document.querySelector("#efuseKeyTable"),
-  efuseLockButton: document.querySelector("#efuseLockButton"),
   efuseRefreshButton: document.querySelector("#efuseRefreshButton"),
   efuseStatusGrid: document.querySelector("#efuseStatusGrid"),
   encryptHeroNote: document.querySelector("#encryptHeroNote"),
@@ -197,202 +194,39 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;");
 }
 
-function setEfuseBusy(action = null) {
-  state.efuseBusy = Boolean(action);
-  state.efuseBusyAction = action;
+function setEfuseBusy(isBusy) {
+  state.efuseBusy = isBusy;
   render();
 }
 
 function clearEfuseState() {
   state.efuseSummary = null;
   state.efuseBusy = false;
-  state.efuseBusyAction = null;
 }
 
 function getEfuseKeyStatus() {
   return getProvisionKeyStatus(state.efuseSummary, elements.efuseKeyInput.value);
 }
 
-function getPendingProvisionItems(summary) {
-  const items = [];
-
-  if (!summary.xtsKeyBlock) {
-    items.push("AES key");
-  }
-  if (!summary.flashEncryptionEnabled) {
-    items.push("SPI_BOOT_CRYPT_CNT");
-  }
-  if (!summary.downloadIcacheDisabled || !summary.downloadDcacheDisabled) {
-    items.push("download-cache hardening");
-  }
-  if (!summary.hardJtagDisabled || summary.usbJtagDisabled === false) {
-    items.push("JTAG hardening");
-  }
-  if (summary.directBootDisabled === false) {
-    items.push("direct-boot hardening");
-  }
-
-  return items;
-}
-
-function getAesKeyCard(keyStatus) {
-  const xtsKeyBlock = state.efuseSummary?.xtsKeyBlock;
-
-  if (xtsKeyBlock?.readProtected) {
-    return {
-      title: "AES key",
-      state: "ready",
-      value: "Locked",
-      note: `${xtsKeyBlock.name} is programmed and read-protected.`,
-    };
-  }
-
-  if (xtsKeyBlock) {
-    if (keyStatus.status === "different") {
-      return {
-        title: "AES key",
-        state: "blocked",
-        value: "Mismatch",
-        note: keyStatus.message,
-      };
-    }
-
-    return {
-      title: "AES key",
-      state: "ready",
-      value: keyStatus.status === "matches" ? "Verified" : "Burned",
-      note:
-        keyStatus.status === "matches"
-          ? `${xtsKeyBlock.name} matches the entered AES key and is still readable for verification.`
-          : `${xtsKeyBlock.name} is programmed and still readable for Stage 2 verification.`,
-    };
-  }
-
-  return {
-    title: "AES key",
-    state: keyStatus.status === "occupied" ? "blocked" : "pending",
-    value: keyStatus.status === "occupied" ? "Blocked" : "Pending",
-    note: keyStatus.message,
-  };
-}
-
-function getProvisionStageCard() {
-  if (!state.efuseSummary) {
-    return {
-      title: "Stage 1 test provision",
-      state: "pending",
-      value: "Pending",
-      note: "Read the chip first, then Stage 1 will burn the non-RD eFuses and keep the AES key readable.",
-    };
-  }
-
-  if (!state.efuseSummary.secureDownloadDisabled) {
-    return {
-      title: "Stage 1 test provision",
-      state: "blocked",
-      value: "Blocked",
-      note: "ENABLE_SECURITY_DOWNLOAD is already burned, so the --encrypt path can no longer be preserved.",
-    };
-  }
-
-  if (!state.efuseSummary.manualEncryptAllowed) {
-    return {
-      title: "Stage 1 test provision",
-      state: "blocked",
-      value: "Blocked",
-      note: "DIS_DOWNLOAD_MANUAL_ENCRYPT is already burned, so plaintext flashing with --encrypt is no longer available.",
-    };
-  }
-
-  if (state.efuseSummary.provisionStageReady) {
-    return {
-      title: "Stage 1 test provision",
-      state: "ready",
-      value: "Complete",
-      note: "Test provisioning is complete. The AES key is still readable so you can verify it before lockdown.",
-    };
-  }
-
-  const pendingItems = getPendingProvisionItems(state.efuseSummary);
-  return {
-    title: "Stage 1 test provision",
-    state: "pending",
-    value: "Pending",
-    note: pendingItems.length
-      ? `Stage 1 will still burn: ${pendingItems.join(", ")}. RD_DIS stays clear for verification.`
-      : "Stage 1 is ready to burn the remaining non-RD eFuses.",
-  };
-}
-
-function getLockdownCard(keyStatus) {
-  if (!state.efuseSummary) {
-    return {
-      title: "Stage 2 lockdown",
-      state: "pending",
-      value: "Pending",
-      note: "Read the chip first. Stage 2 only burns RD_DIS for the active flash-encryption key block.",
-    };
-  }
-
-  const xtsKeyBlock = state.efuseSummary.xtsKeyBlock;
-  if (!xtsKeyBlock) {
-    return {
-      title: "Stage 2 lockdown",
-      state: "pending",
-      value: "Pending",
-      note: "Stage 1 must program an XTS AES key block before lockdown is available.",
-    };
-  }
-
-  if (xtsKeyBlock.readProtected) {
-    return {
-      title: "Stage 2 lockdown",
-      state: "ready",
-      value: "Locked",
-      note: `${xtsKeyBlock.name} is read-protected. Raw key readback is no longer possible.`,
-    };
-  }
-
-  if (!state.efuseSummary.provisionStageReady) {
-    return {
-      title: "Stage 2 lockdown",
-      state: "pending",
-      value: "Waiting",
-      note: "Complete Stage 1 first, then verify the readable AES key before locking it down.",
-    };
-  }
-
-  if (keyStatus.status === "matches") {
-    return {
-      title: "Stage 2 lockdown",
-      state: "pending",
-      value: "Ready",
-      note: `The entered AES key matches ${xtsKeyBlock.name}. Press Lockdown when you are ready to burn RD_DIS.`,
-    };
-  }
-
-  if (keyStatus.status === "different") {
-    return {
-      title: "Stage 2 lockdown",
-      state: "blocked",
-      value: "Mismatch",
-      note: keyStatus.message,
-    };
-  }
-
-  return {
-    title: "Stage 2 lockdown",
-    state: "pending",
-    value: "Pending",
-    note: `Enter the exact AES key from ${xtsKeyBlock.name} to verify it before burning RD_DIS.`,
-  };
-}
-
 function getEfuseCards() {
   const keyStatus = getEfuseKeyStatus();
   return [
-    getAesKeyCard(keyStatus),
-    getProvisionStageCard(),
+    {
+      title: "AES key",
+      state:
+        keyStatus.status === "matches"
+          ? "ready"
+          : keyStatus.status === "different" || keyStatus.status === "occupied"
+            ? "blocked"
+            : "pending",
+      value:
+        keyStatus.status === "matches"
+          ? "Ready"
+          : keyStatus.status === "different" || keyStatus.status === "occupied"
+            ? "Blocked"
+            : "Pending",
+      note: keyStatus.message,
+    },
     {
       title: "Flash encryption dev mode",
       state: state.efuseSummary?.flashEncryptionEnabled ? "ready" : "pending",
@@ -421,7 +255,6 @@ function getEfuseCards() {
           : "Secure Download is already enabled and cannot be undone."
         : "This must stay off for your plaintext --encrypt flow.",
     },
-    getLockdownCard(keyStatus),
   ];
 }
 
@@ -572,50 +405,28 @@ function render() {
   }
 
   const keyStatus = getEfuseKeyStatus();
-  const normalizedKey = normalizeEfuseHexKey(elements.efuseKeyInput.value);
   const burnBlocked =
     keyStatus.status === "invalid" ||
     keyStatus.status === "different" ||
     keyStatus.status === "occupied" ||
-    keyStatus.status === "locked" ||
     !state.efuseSummary?.secureDownloadDisabled ||
-    (state.efuseSummary && !state.efuseSummary.manualEncryptAllowed) ||
-    (state.efuseSummary?.provisionStageReady ?? false);
-  const lockdownBlocked =
-    keyStatus.status !== "matches" ||
-    !state.efuseSummary?.lockdownReady;
+    (state.efuseSummary && !state.efuseSummary.manualEncryptAllowed);
 
-  let keyHelpMessage = keyStatus.message;
-  if (state.efuseSummary?.xtsKeyBlock?.readProtected) {
-    keyHelpMessage = "AES key is locked on-chip. Raw readback is no longer available.";
-  } else if (state.efuseSummary?.xtsKeyBlock && normalizedKey.length === 0) {
-    keyHelpMessage = "AES key is burned and readable. Enter it again to verify before lockdown.";
-  }
-
-  elements.efuseKeyHelp.textContent = `${normalizedKey.length}/64 • ${keyHelpMessage}`;
+  elements.efuseKeyHelp.textContent = `${normalizeEfuseHexKey(elements.efuseKeyInput.value).length}/64 • ${keyStatus.message}`;
   elements.efuseRefreshButton.disabled =
     !state.loader || state.isBusy || state.efuseBusy;
-  elements.efuseRefreshButton.textContent = state.efuseBusyAction === "read"
+  elements.efuseRefreshButton.textContent = state.efuseBusy
     ? "Reading..."
     : "Read eFuses";
   elements.efuseBurnButton.disabled =
     !state.loader ||
     state.isBusy ||
     state.efuseBusy ||
-    burnBlocked;
-  elements.efuseBurnButton.textContent = state.efuseBusyAction === "stage1"
-    ? "Stage 1 running..."
-    : "Stage 1: Test Provision";
-  elements.efuseLockButton.disabled =
-    !state.loader ||
-    state.isBusy ||
-    state.efuseBusy ||
-    lockdownBlocked;
-  elements.efuseLockButton.textContent = state.efuseBusyAction === "lockdown"
-    ? "Locking..."
-    : state.efuseSummary?.xtsKeyBlock?.readProtected
-      ? "Stage 2: Locked"
-      : "Stage 2: Lockdown";
+    burnBlocked ||
+    (state.efuseSummary?.provisionReady ?? false);
+  elements.efuseBurnButton.textContent = state.efuseBusy
+    ? "Burning..."
+    : "Burn AES Key + Dev Mode";
   renderEfuseStatus();
 }
 
@@ -639,7 +450,7 @@ async function refreshEfuseInfo() {
     return;
   }
 
-  setEfuseBusy("read");
+  setEfuseBusy(true);
   try {
     appendLog("[eFuse] Reading eFuse summary...");
     state.efuseSummary = await readEfuseSummary(state.loader);
@@ -651,7 +462,7 @@ async function refreshEfuseInfo() {
       `[eFuse] Read failed: ${error instanceof Error ? error.message : String(error)}`,
     );
   } finally {
-    setEfuseBusy(null);
+    setEfuseBusy(false);
   }
 }
 
@@ -660,10 +471,10 @@ async function burnEfuseProvisioning() {
     return;
   }
 
-  setEfuseBusy("stage1");
+  setEfuseBusy(true);
   try {
-    appendLog("[eFuse] Starting Stage 1 test provisioning...");
-    const result = await applyStagedProvisioning(
+    appendLog("[eFuse] Starting AES key + dev-mode provisioning...");
+    const result = await applyDevelopmentProvisioning(
       state.loader,
       elements.efuseKeyInput.value,
     );
@@ -673,42 +484,15 @@ async function burnEfuseProvisioning() {
     } else {
       result.actions.forEach((action) => appendLog(`[eFuse] ${action}`));
     }
-    if (result.summary.provisionStageReady) {
-      appendLog("[eFuse] Stage 1 complete. The device is ready for verification with the AES key still readable.");
+    if (result.summary.provisionReady) {
+      appendLog("[eFuse] Device is ready for plaintext flashing with --encrypt.");
     }
   } catch (error) {
     appendLog(
-      `[eFuse] Stage 1 failed: ${error instanceof Error ? error.message : String(error)}`,
+      `[eFuse] Provisioning failed: ${error instanceof Error ? error.message : String(error)}`,
     );
   } finally {
-    setEfuseBusy(null);
-  }
-}
-
-async function lockDownEfuseProvisioning() {
-  if (!state.loader || state.efuseBusy) {
-    return;
-  }
-
-  setEfuseBusy("lockdown");
-  try {
-    appendLog("[eFuse] Starting Stage 2 lockdown...");
-    const result = await applyProvisionLockdown(
-      state.loader,
-      elements.efuseKeyInput.value,
-    );
-    state.efuseSummary = result.summary;
-    if (!result.actions.length) {
-      appendLog("[eFuse] Lockdown was already complete.");
-    } else {
-      result.actions.forEach((action) => appendLog(`[eFuse] ${action}`));
-    }
-  } catch (error) {
-    appendLog(
-      `[eFuse] Lockdown failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  } finally {
-    setEfuseBusy(null);
+    setEfuseBusy(false);
   }
 }
 
@@ -1119,7 +903,6 @@ function attachEvents() {
   elements.connectButton.addEventListener("click", connectDevice);
   elements.disconnectButton.addEventListener("click", disconnectDevice);
   elements.efuseBurnButton.addEventListener("click", burnEfuseProvisioning);
-  elements.efuseLockButton.addEventListener("click", lockDownEfuseProvisioning);
   elements.efuseKeyInput.addEventListener("input", (event) => {
     event.target.value = normalizeEfuseHexKey(event.target.value);
     render();

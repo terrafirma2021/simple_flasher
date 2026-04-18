@@ -477,11 +477,6 @@ select option:checked {
   margin-top: 0.85rem;
 }
 
-.efuse-button-stack {
-  display: grid;
-  gap: 0.55rem;
-}
-
 .efuse-input {
   width: 100%;
   border: 1px solid var(--panel-border);

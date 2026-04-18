@@ -29,3 +29,5 @@ npm run build
 - Put the device into flash mode before pressing `Connect device`.
 - The flasher logic vendors the local `esptool-js` fork from the main website project.
 - GitHub Pages deployment is handled by [deploy.yml](./.github/workflows/deploy.yml).
+- Pushes to `main` auto-build and auto-deploy once Pages is enabled for the repo.
+- For first-run auto-enable, add a repository secret named `PAGES_TOKEN` with Pages write access or a classic PAT with `repo`.

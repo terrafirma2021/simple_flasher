@@ -132,10 +132,6 @@ function normalizeEfuseHexKey(value) {
   return value.replace(/[\s:-]/g, "");
 }
 
-function normalizeEfuseHexKeyUpper(value) {
-  return normalizeEfuseHexKey(value).toUpperCase();
-}
-
 function isValidEfuseHexKey(value) {
   return /^[0-9a-fA-F]{64}$/.test(normalizeEfuseHexKey(value));
 }
@@ -316,8 +312,22 @@ function reverseBytesPerWord(bytes) {
   return output;
 }
 
-function getHexVariantsFromDirectBytes(directBytes) {
-  const direct = Uint8Array.from(directBytes);
+function getReadableKeyHexCandidates(words) {
+  const direct = Uint8Array.from(wordsToBytes(words));
+  const reversed = Uint8Array.from(direct).reverse();
+  const wordReversed = reverseWordOrder(direct);
+  const byteReversedPerWord = reverseBytesPerWord(direct);
+
+  return new Set([
+    bytesToHex(direct),
+    bytesToHex(reversed),
+    bytesToHex(wordReversed),
+    bytesToHex(byteReversedPerWord),
+  ]);
+}
+
+function getReadableKeyHexVariants(words) {
+  const direct = Uint8Array.from(wordsToBytes(words));
   const reversed = Uint8Array.from(direct).reverse();
   const wordReversed = reverseWordOrder(direct);
   const byteReversedPerWord = reverseBytesPerWord(direct);
@@ -328,25 +338,6 @@ function getHexVariantsFromDirectBytes(directBytes) {
     { label: "reverse-word-order", hex: bytesToHex(wordReversed) },
     { label: "reverse-bytes-per-word", hex: bytesToHex(byteReversedPerWord) },
   ];
-}
-
-function getReadableKeyHexCandidates(words) {
-  return new Set(
-    getHexVariantsFromDirectBytes(wordsToBytes(words)).map((variant) => variant.hex),
-  );
-}
-
-function getReadableKeyHexVariants(words) {
-  return getHexVariantsFromDirectBytes(wordsToBytes(words));
-}
-
-function getExpectedReadableKeyHexVariants(keyValue) {
-  const direct = Uint8Array.from(normalizeKeyBytes(keyValue)).reverse();
-  return getHexVariantsFromDirectBytes(direct);
-}
-
-function blockMatchesKeyValue(block, keyValue) {
-  return getReadableKeyHexCandidates(block.rawWords).has(normalizeEfuseHexKeyUpper(keyValue));
 }
 
 function keyBytesEqual(left, right) {
@@ -485,9 +476,7 @@ function getProvisionKeyStatus(summary, keyValue) {
 
   const desiredKey = normalizeKeyBytes(keyValue);
 
-  const matchingUserBlock = summary.keyBlocks.find(
-    (block) => !block.readProtected && !block.isEmpty && getReadableKeyHexCandidates(block.rawWords).has(bytesToHex(desiredKey)),
-  );
+  const matchingUserBlock = summary.keyBlocks.find((block) => !block.readProtected && !block.isEmpty && keyBytesEqual(decodeReadableKey(block.rawWords), desiredKey));
   if (matchingUserBlock) {
     return { status: "ready", message: `${matchingUserBlock.name} already contains this key and only needs the XTS AES purpose.` };
   }
@@ -598,15 +587,6 @@ async function applyStagedProvisioning(loader, keyValue) {
     await burnKeyBlock(loader, config, targetBlock, keyBytes);
     actions.push(`Burned AES key into ${targetBlock.name}.`);
     summary = await readEfuseSummary(loader);
-    const verifiedBlock = summary.keyBlocks.find((entry) => entry.index === targetBlock.index);
-    if (!verifiedBlock || !blockMatchesKeyValue(verifiedBlock, keyValue)) {
-      const chipBuildOrderKey =
-        verifiedBlock ? getReadableKeyHexVariants(verifiedBlock.rawWords).find((variant) => variant.label === "reverse-all")?.hex : null;
-      throw new Error(
-        `AES key verification failed immediately after burn in ${targetBlock.name}. Expected ${normalizeEfuseHexKeyUpper(keyValue)} but chip reads ${chipBuildOrderKey || "an unexpected value"}. No additional eFuses were burned.`,
-      );
-    }
-    actions.push(`Verified ${targetBlock.name} matches the entered AES key before any additional eFuses were burned.`);
   }
 
   const blockAfterBurn = summary.keyBlocks.find((entry) => entry.index === targetBlock.index) || targetBlock;
@@ -681,30 +661,10 @@ function getProvisionDebugInfo(summary, keyValue = "") {
   };
 }
 
-function getProvisionPreflightInfo(summary, keyValue = "") {
-  if (!isValidEfuseHexKey(keyValue)) {
-    return null;
-  }
-
-  let targetBlockName = null;
-  if (summary) {
-    try {
-      targetBlockName = resolveTargetKeyBlock(summary, normalizeKeyBytes(keyValue)).name;
-    } catch (_error) {}
-  }
-
-  return {
-    inputKeyHex: normalizeEfuseHexKeyUpper(keyValue),
-    targetBlockName,
-    expectedReadableVariants: getExpectedReadableKeyHexVariants(keyValue),
-  };
-}
-
 export {
   applyProvisionLockdown,
   applyStagedProvisioning,
   getProvisionDebugInfo,
-  getProvisionPreflightInfo,
   getProvisionKeyStatus,
   normalizeEfuseHexKey,
   readEfuseSummary,

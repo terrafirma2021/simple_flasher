@@ -1,11 +1,6 @@
 import "./styles.css";
 
-import { Buffer } from "buffer";
-import { ESPLoader, Transport } from "./vendor/esptool/index.js";
-
-if (typeof globalThis.Buffer === "undefined") {
-  globalThis.Buffer = Buffer;
-}
+import { MAKCUESPLoader, Transport } from "./lib/makcu-esptool.js";
 
 const FIRMWARE_API_URL =
   "https://api.github.com/repos/terrafirma2021/MAKCM_v2_files/contents";
@@ -358,7 +353,7 @@ async function connectDevice() {
 
     const buildLoader = () => {
       const transport = new Transport(port, false, true);
-      const loader = new ESPLoader({
+      const loader = new MAKCUESPLoader({
         baudrate: FLASH_BAUD_RATE,
         debugLogging: false,
         enableTracing: true,

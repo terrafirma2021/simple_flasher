@@ -4,7 +4,6 @@ import { MAKCUESPLoader, Transport } from "./lib/makcu-esptool.js";
 import {
   applyProvisionLockdown,
   applyStagedProvisioning,
-  getProvisionDebugInfo,
   getProvisionKeyStatus,
   normalizeEfuseHexKey,
   readEfuseSummary,
@@ -212,25 +211,6 @@ function clearEfuseState() {
 
 function getEfuseKeyStatus() {
   return getProvisionKeyStatus(state.efuseSummary, elements.efuseKeyInput.value);
-}
-
-function logProvisionDebugInfo() {
-  const debugInfo = getProvisionDebugInfo(
-    state.efuseSummary,
-    elements.efuseKeyInput.value,
-  );
-
-  if (!debugInfo) {
-    return;
-  }
-
-  appendLog(`[eFuse] ${debugInfo.blockName} readable AES key variants:`);
-  debugInfo.readableVariants.forEach((variant) => {
-    appendLog(`[eFuse]   ${variant.label}: ${variant.hex}`);
-  });
-  if (debugInfo.inputKeyHex) {
-    appendLog(`[eFuse]   entered: ${debugInfo.inputKeyHex}`);
-  }
 }
 
 function getPendingProvisionItems(summary) {
@@ -666,7 +646,6 @@ async function refreshEfuseInfo() {
     appendLog(
       `[eFuse] ${state.efuseSummary.chipName}: SPI_BOOT_CRYPT_CNT=${state.efuseSummary.spiBootCryptCnt}, manualEncrypt=${state.efuseSummary.manualEncryptAllowed ? "allowed" : "disabled"}, secureDownload=${state.efuseSummary.secureDownloadDisabled ? "disabled" : "enabled"}.`,
     );
-    logProvisionDebugInfo();
   } catch (error) {
     appendLog(
       `[eFuse] Read failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -694,7 +673,6 @@ async function burnEfuseProvisioning() {
     } else {
       result.actions.forEach((action) => appendLog(`[eFuse] ${action}`));
     }
-    logProvisionDebugInfo();
     if (result.summary.provisionStageReady) {
       appendLog("[eFuse] Stage 1 complete. The device is ready for verification with the AES key still readable.");
     }
@@ -725,7 +703,6 @@ async function lockDownEfuseProvisioning() {
     } else {
       result.actions.forEach((action) => appendLog(`[eFuse] ${action}`));
     }
-    logProvisionDebugInfo();
   } catch (error) {
     appendLog(
       `[eFuse] Lockdown failed: ${error instanceof Error ? error.message : String(error)}`,

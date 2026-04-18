@@ -288,6 +288,58 @@ function decodeReadableKey(words) {
   return Uint8Array.from(wordsToBytes(words)).reverse();
 }
 
+function bytesToHex(bytes) {
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
+function reverseWordOrder(bytes) {
+  const output = new Uint8Array(bytes.length);
+  const wordCount = bytes.length / 4;
+  for (let index = 0; index < wordCount; index += 1) {
+    output.set(bytes.subarray(index * 4, index * 4 + 4), (wordCount - 1 - index) * 4);
+  }
+  return output;
+}
+
+function reverseBytesPerWord(bytes) {
+  const output = new Uint8Array(bytes.length);
+  for (let index = 0; index < bytes.length; index += 4) {
+    output[index] = bytes[index + 3];
+    output[index + 1] = bytes[index + 2];
+    output[index + 2] = bytes[index + 1];
+    output[index + 3] = bytes[index];
+  }
+  return output;
+}
+
+function getReadableKeyHexCandidates(words) {
+  const direct = Uint8Array.from(wordsToBytes(words));
+  const reversed = Uint8Array.from(direct).reverse();
+  const wordReversed = reverseWordOrder(direct);
+  const byteReversedPerWord = reverseBytesPerWord(direct);
+
+  return new Set([
+    bytesToHex(direct),
+    bytesToHex(reversed),
+    bytesToHex(wordReversed),
+    bytesToHex(byteReversedPerWord),
+  ]);
+}
+
+function getReadableKeyHexVariants(words) {
+  const direct = Uint8Array.from(wordsToBytes(words));
+  const reversed = Uint8Array.from(direct).reverse();
+  const wordReversed = reverseWordOrder(direct);
+  const byteReversedPerWord = reverseBytesPerWord(direct);
+
+  return [
+    { label: "direct", hex: bytesToHex(direct) },
+    { label: "reverse-all", hex: bytesToHex(reversed) },
+    { label: "reverse-word-order", hex: bytesToHex(wordReversed) },
+    { label: "reverse-bytes-per-word", hex: bytesToHex(byteReversedPerWord) },
+  ];
+}
+
 function keyBytesEqual(left, right) {
   if (left.length !== right.length) return false;
   for (let index = 0; index < left.length; index += 1) {
@@ -411,8 +463,8 @@ function getProvisionKeyStatus(summary, keyValue) {
     if (!isValidEfuseHexKey(keyValue)) {
       return { status: "burned", blockName: xtsBlock.name, message: `${xtsBlock.name} already holds a flash-encryption key and is still readable.` };
     }
-    const desiredKey = normalizeKeyBytes(keyValue);
-    if (keyBytesEqual(decodeReadableKey(xtsBlock.rawWords), desiredKey)) {
+    const desiredKeyHex = bytesToHex(normalizeKeyBytes(keyValue));
+    if (getReadableKeyHexCandidates(xtsBlock.rawWords).has(desiredKeyHex)) {
       return { status: "matches", blockName: xtsBlock.name, message: `${xtsBlock.name} already contains this AES key.` };
     }
     return { status: "different", blockName: xtsBlock.name, message: `${xtsBlock.name} already contains a different flash-encryption key.` };
@@ -592,9 +644,27 @@ async function applyProvisionLockdown(loader, keyValue) {
   };
 }
 
+function getProvisionDebugInfo(summary, keyValue = "") {
+  if (!summary?.xtsKeyBlock || summary.xtsKeyBlock.readProtected) {
+    return null;
+  }
+
+  const variants = getReadableKeyHexVariants(summary.xtsKeyBlock.rawWords);
+  const normalizedInput = isValidEfuseHexKey(keyValue)
+    ? normalizeEfuseHexKey(keyValue).toUpperCase()
+    : null;
+
+  return {
+    blockName: summary.xtsKeyBlock.name,
+    inputKeyHex: normalizedInput,
+    readableVariants: variants,
+  };
+}
+
 export {
   applyProvisionLockdown,
   applyStagedProvisioning,
+  getProvisionDebugInfo,
   getProvisionKeyStatus,
   normalizeEfuseHexKey,
   readEfuseSummary,

@@ -499,6 +499,7 @@ function createFlashOptions(buffer) {
   return {
     compress: true,
     eraseAll: false,
+    flashSize: "keep",
     fileArray: [
       {
         address: 0x0,

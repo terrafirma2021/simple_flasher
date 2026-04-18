@@ -10,12 +10,6 @@ if (typeof globalThis.Buffer === "undefined") {
 const FIRMWARE_API_URL =
   "https://api.github.com/repos/terrafirma2021/MAKCM_v2_files/contents";
 const FLASH_BAUD_RATE = 921600;
-const SERIAL_PORT_CONFIG = {
-  dataBits: 8,
-  stopBits: 1,
-  parity: "none",
-  flowControl: "none",
-};
 
 const state = {
   firmwareMode: "online",
@@ -287,13 +281,6 @@ async function fetchFirmwareList() {
   }
 }
 
-async function openPortWithBaudRate(port, baudRate) {
-  await port.open({
-    baudRate,
-    ...SERIAL_PORT_CONFIG,
-  });
-}
-
 async function safeClosePort(port) {
   if (!port) {
     return;
@@ -345,47 +332,6 @@ async function hardClosePort(port) {
   } catch (_error) {}
 }
 
-async function drainPort(port) {
-  if (!port.readable) {
-    return;
-  }
-
-  let reader = null;
-  let drainedBytes = 0;
-
-  try {
-    reader = port.readable.getReader();
-
-    for (let index = 0; index < 10; index += 1) {
-      const result = await Promise.race([
-        reader.read(),
-        new Promise((resolve) =>
-          window.setTimeout(() => resolve({ done: true, value: undefined }), 50),
-        ),
-      ]);
-
-      if (result.done || !result.value) {
-        break;
-      }
-
-      drainedBytes += result.value.length;
-    }
-  } catch (_error) {
-  } finally {
-    try {
-      await reader?.cancel();
-    } catch (_error) {}
-
-    try {
-      reader?.releaseLock();
-    } catch (_error) {}
-  }
-
-  if (drainedBytes > 0) {
-    appendLog(`Drained ${drainedBytes} stale serial byte(s) before flashing.`);
-  }
-}
-
 function createTerminal() {
   return {
     clean() {},
@@ -426,21 +372,15 @@ async function connectDevice() {
 
     let lastError = null;
     for (let attempt = 1; attempt <= 3; attempt += 1) {
+      let transport = null;
+
       try {
         await hardClosePort(port);
         await safeClosePort(port);
         await new Promise((resolve) => window.setTimeout(resolve, 300));
 
-        try {
-          await openPortWithBaudRate(port, 115200);
-          await drainPort(port);
-          await safeClosePort(port);
-          await new Promise((resolve) => window.setTimeout(resolve, 200));
-        } catch (_error) {
-          appendLog("Port drain skipped; continuing with loader sync.");
-        }
-
-        const { loader, transport } = buildLoader();
+        const { loader, transport: nextTransport } = buildLoader();
+        transport = nextTransport;
         appendLog(
           `Connecting in flash mode (attempt ${attempt}/3, flash baud ${FLASH_BAUD_RATE})...`,
         );
@@ -458,6 +398,12 @@ async function connectDevice() {
         return;
       } catch (error) {
         lastError = error;
+        if (transport) {
+          try {
+            await transport.disconnect();
+          } catch (_error) {}
+        }
+        await safeClosePort(port);
         appendLog(
           `Flash connection attempt ${attempt} failed: ${error instanceof Error ? error.message : String(error)}`,
         );

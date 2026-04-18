@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Simple Flasher</title>
+    <meta
+      name="description"
+      content="A simple GitHub Pages firmware flasher for MAKCU devices."
+    />
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">MAKCU Encrypted Flasher</p>
+          <h1>Simple flashing, stripped back to what matters.</h1>
+          <p class="lead">
+            Use desktop Brave, connect the device while it is already in flash
+            mode, then choose firmware from the online list or your own offline
+            `.bin` file.
+          </p>
+          <div class="hero-notes">
+            <p class="hero-note hero-note-strong">
+              Brave browser must be used when flashing.
+            </p>
+            <p class="hero-note">
+              Every flash in this build forces encrypted writes.
+            </p>
+          </div>
+        </div>
+        <button
+          id="themeToggle"
+          class="ghost-button"
+          type="button"
+          aria-label="Toggle theme"
+        >
+          Toggle theme
+        </button>
+      </header>
+
+      <main class="layout">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Step 1</p>
+              <h2>Connect</h2>
+            </div>
+            <span id="statusBadge" class="status-badge">Disconnected</span>
+          </div>
+
+          <p id="browserNotice" class="callout">
+            Checking browser compatibility...
+          </p>
+
+          <div class="button-row">
+            <button id="connectButton" class="primary-button" type="button">
+              Connect device
+            </button>
+            <button id="disconnectButton" class="ghost-button" type="button">
+              Disconnect
+            </button>
+          </div>
+
+          <dl class="device-grid">
+            <div class="device-card">
+              <dt>Chip</dt>
+              <dd id="chipName">Not connected</dd>
+            </div>
+            <div class="device-card">
+              <dt>Connection</dt>
+              <dd id="connectionMode">Waiting</dd>
+            </div>
+            <div class="device-card">
+              <dt>Flash mode</dt>
+              <dd>Manual bootloader</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Step 2</p>
+              <h2>Firmware</h2>
+            </div>
+          </div>
+
+          <div class="toggle-row" role="tablist" aria-label="Firmware source">
+            <button
+              id="onlineModeButton"
+              class="toggle-button is-active"
+              type="button"
+              data-mode="online"
+              aria-pressed="true"
+            >
+              Online
+            </button>
+            <button
+              id="offlineModeButton"
+              class="toggle-button"
+              type="button"
+              data-mode="offline"
+              aria-pressed="false"
+            >
+              Offline
+            </button>
+          </div>
+
+          <div id="onlinePanel" class="firmware-panel">
+            <label class="field">
+              <span>Firmware list</span>
+              <select id="firmwareSelect"></select>
+            </label>
+
+            <p id="firmwareMeta" class="field-note">
+              Loading firmware list...
+            </p>
+
+            <div class="button-row">
+              <button id="refreshListButton" class="ghost-button" type="button">
+                Refresh list
+              </button>
+              <button id="flashOnlineButton" class="primary-button" type="button">
+                Flash selected firmware
+              </button>
+            </div>
+          </div>
+
+          <div id="offlinePanel" class="firmware-panel" hidden>
+            <label class="field">
+              <span>Offline firmware</span>
+              <input id="offlineFileInput" type="file" accept=".bin" />
+            </label>
+
+            <p id="offlineFileMeta" class="field-note">
+              No local firmware selected yet.
+            </p>
+
+            <div class="button-row">
+              <button id="flashOfflineButton" class="primary-button" type="button">
+                Flash selected file
+              </button>
+            </div>
+          </div>
+
+          <div class="progress-card" aria-live="polite">
+            <div class="progress-labels">
+              <span>Progress</span>
+              <span id="progressLabel">0%</span>
+            </div>
+            <div class="progress-track">
+              <div id="progressBar" class="progress-fill"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Step 3</p>
+              <h2>Flash log</h2>
+            </div>
+            <button id="clearLogButton" class="ghost-button" type="button">
+              Clear
+            </button>
+          </div>
+
+          <pre id="logOutput" class="log-output"></pre>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

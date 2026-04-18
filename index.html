@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MAKCU Flasher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: rgba(255,255,255,0.04);
+      --surface-hover: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.08);
+      --border-strong: rgba(255,255,255,0.15);
+      --text: #e8e8f0;
+      --text-muted: #6b6b80;
+      --text-dim: #9999aa;
+      --accent: #7c6aff;
+      --accent-glow: rgba(124,106,255,0.25);
+      --accent-2: #00d4ff;
+      --success: #22c55e;
+      --success-glow: rgba(34,197,94,0.2);
+      --warning: #f59e0b;
+      --warning-glow: rgba(245,158,11,0.2);
+      --danger: #ef4444;
+      --danger-glow: rgba(239,68,68,0.2);
+      --info: #3b82f6;
+      --radius: 14px;
+      --radius-sm: 8px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+      --transition: 0.18s ease;
+    }
+
+    [data-theme="light"] {
+      --bg: #f0f0f8;
+      --surface: rgba(255,255,255,0.85);
+      --surface-hover: rgba(255,255,255,0.95);
+      --border: rgba(0,0,0,0.08);
+      --border-strong: rgba(0,0,0,0.15);
+      --text: #0f0f1a;
+      --text-muted: #888898;
+      --text-dim: #555568;
+      --accent: #6c5ce7;
+      --accent-glow: rgba(108,92,231,0.15);
+      --accent-2: #00a8cc;
+      --success: #16a34a;
+      --success-glow: rgba(22,163,74,0.15);
+      --warning: #d97706;
+      --warning-glow: rgba(217,119,6,0.15);
+      --danger: #dc2626;
+      --danger-glow: rgba(220,38,38,0.15);
+      --shadow: 0 4px 24px rgba(0,0,0,0.1);
+    }
+
+    html, body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    /* Background gradient blobs */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 10% -10%, rgba(124,106,255,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 90% 110%, rgba(0,212,255,0.08) 0%, transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 40px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    .brand-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--text) 40%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Browser warning banner */
+    .browser-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: var(--radius-sm);
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--warning);
+    }
+    .browser-banner.visible { display: flex; }
+    .browser-banner svg { flex-shrink: 0; }
+
+    /* Encrypted badge */
+    .badge-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid;
+    }
+
+    .badge-purple {
+      background: var(--accent-glow);
+      border-color: rgba(124,106,255,0.3);
+      color: var(--accent);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      transition: border-color var(--transition), background var(--transition);
+    }
+
+    .card:hover {
+      border-color: var(--border-strong);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    /* Status section */
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 500px) {
+      .status-grid { grid-template-columns: 1fr; }
+    }
+
+    .status-item {
+      padding: 14px 16px;
+      background: rgba(0,0,0,0.15);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    [data-theme="light"] .status-item {
+      background: rgba(0,0,0,0.04);
+    }
+
+    .status-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .status-value {
+      font-size: 14px;
+      font-weight: 500;
+      font-family: 'Space Mono', monospace;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    /* LED dot */
+    .led {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--text-muted);
+      transition: background 0.3s;
+    }
+
+    .led.green { background: var(--success); box-shadow: 0 0 8px var(--success-glow); }
+    .led.blue { background: var(--info); box-shadow: 0 0 8px rgba(59,130,246,0.4); }
+    .led.yellow { background: var(--warning); box-shadow: 0 0 8px var(--warning-glow); animation: pulse 1.2s infinite; }
+    .led.red { background: var(--danger); box-shadow: 0 0 8px var(--danger-glow); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Connection main status */
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .connection-led-wrap {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .connection-led-wrap .led-big {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: background 0.3s, box-shadow 0.3s;
+      position: relative;
+      z-index: 1;
+    }
+
+    .connection-led-wrap .led-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .connection-led-wrap.state-connected .led-big { background: var(--success); }
+    .connection-led-wrap.state-connected .led-ring { background: var(--success-glow); opacity: 1; animation: ring-pulse 2s infinite; }
+    .connection-led-wrap.state-flash .led-big { background: var(--info); }
+    .connection-led-wrap.state-flash .led-ring { background: rgba(59,130,246,0.2); opacity: 1; animation: ring-pulse 2s infinite; }
+    .connection-led-wrap.state-connecting .led-big { background: var(--warning); }
+    .connection-led-wrap.state-connecting .led-ring { background: var(--warning-glow); opacity: 1; animation: ring-pulse 0.8s infinite; }
+    .connection-led-wrap.state-error .led-big { background: var(--danger); }
+
+    @keyframes ring-pulse {
+      0% { transform: scale(0.9); opacity: 0.7; }
+      100% { transform: scale(1.7); opacity: 0; }
+    }
+
+    .connection-text { flex: 1; }
+    .connection-text-main {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .connection-text-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 0 var(--accent-glow);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #8f7fff;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    .btn-ghost {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--surface-hover);
+      border-color: rgba(255,255,255,0.25);
+    }
+
+    .btn-danger {
+      background: rgba(239,68,68,0.12);
+      color: var(--danger);
+      border-color: rgba(239,68,68,0.3);
+    }
+    .btn-danger:hover:not(:disabled) {
+      background: rgba(239,68,68,0.2);
+    }
+
+    .btn-icon {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 8px;
+    }
+
+    .btn-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Firmware section */
+    .mode-toggle {
+      display: flex;
+      gap: 0;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      width: fit-content;
+      margin-bottom: 20px;
+    }
+
+    [data-theme="light"] .mode-toggle {
+      background: rgba(0,0,0,0.06);
+    }
+
+    .mode-toggle-btn {
+      padding: 6px 20px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all var(--transition);
+    }
+
+    .mode-toggle-btn.active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 8px var(--accent-glow);
+    }
+
+    /* Select */
+    .select-wrap {
+      position: relative;
+    }
+
+    .select-wrap select {
+      width: 100%;
+      appearance: none;
+      -webkit-appearance: none;
+      padding: 10px 40px 10px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background: rgba(0,0,0,0.25);
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color var(--transition);
+    }
+
+    [data-theme="light"] .select-wrap select {
+      background: rgba(255,255,255,0.8);
+    }
+
+    .select-wrap select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .select-wrap select:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .select-arrow {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: var(--text-muted);
+    }
+
+    .select-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .select-row .select-wrap { flex: 1; }
+
+    /* File input */
+    .file-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px dashed var(--border-strong);
+      background: rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .file-input-wrap:hover {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    .file-input-wrap input[type="file"] { display: none; }
+
+    .file-name {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      color: var(--text-dim);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-name.selected { color: var(--text); }
+
+    /* Progress */
+    .progress-wrap {
+      margin-top: 16px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .progress-track {
+      height: 6px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    [data-theme="light"] .progress-track {
+      background: rgba(0,0,0,0.08);
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 0.3s ease;
+      width: 0%;
+      position: relative;
+    }
+
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 40px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+      animation: shimmer 1.2s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { opacity: 0; }
+      50% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Terminal / Flash log */
+    .terminal {
+      background: #06060c;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      height: 260px;
+      overflow-y: auto;
+      padding: 14px;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      scroll-behavior: smooth;
+    }
+
+    [data-theme="light"] .terminal {
+      background: #f8f8fc;
+    }
+
+    .terminal::-webkit-scrollbar { width: 6px; }
+    .terminal::-webkit-scrollbar-track { background: transparent; }
+    .terminal::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+    .log-line { display: flex; gap: 10px; }
+    .log-time { color: var(--text-muted); flex-shrink: 0; }
+    .log-msg { color: var(--text); word-break: break-all; }
+    .log-msg.info { color: var(--accent-2); }
+    .log-msg.success { color: var(--success); }
+    .log-msg.warn { color: var(--warning); }
+    .log-msg.error { color: var(--danger); }
+
+    .terminal-empty {
+      color: var(--text-muted);
+      display: flex;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    /* Helper row */
+    .helper-text {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition);
+      font-size: 16px;
+    }
+
+    .theme-toggle:hover {
+      background: var(--surface-hover);
+      border-color: rgba(255,255,255,0.25);
+    }
+
+    /* Encryption badge */
+    .enc-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.25);
+      color: var(--success);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+
+    /* Flash button glow on active flash */
+    .flashing .btn-primary {
+      animation: btn-glow 1s infinite alternate;
+    }
+
+    @keyframes btn-glow {
+      from { box-shadow: 0 0 8px var(--accent-glow); }
+      to { box-shadow: 0 0 24px var(--accent-glow); }
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .header { flex-wrap: wrap; gap: 12px; }
+      .select-row { flex-direction: column; }
+      .select-row .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <span class="brand-eyebrow">Web Flasher</span>
+        <h1 class="brand-title">MAKCU Flasher</h1>
+      </div>
+      <div class="header-actions">
+        <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+      </div>
+    </header>
+
+    <!-- Badges -->
+    <div class="badge-row">
+      <span class="enc-badge">
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a3 3 0 0 0-3 3v2H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1V4a3 3 0 0 0-3-3zm-1 3a1 1 0 1 1 2 0v2H7V4z"/></svg>
+        Encrypted flash enabled
+      </span>
+      <span class="badge badge-purple">
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zm0 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
+        Brave required
+      </span>
+    </div>
+
+    <!-- Browser warning -->
+    <div class="browser-banner" id="browserBanner">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zm0 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
+      <span id="browserMsg">Web Serial API not supported. Please use Brave or Chrome.</span>
+    </div>
+
+    <!-- Connection card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Connection</span>
+        <span class="helper-text" id="flashModeHint">Hold BOOT button while connecting for flash mode</span>
+      </div>
+
+      <div class="connection-status">
+        <div class="connection-led-wrap" id="ledWrap">
+          <div class="led-ring"></div>
+          <div class="led-big"></div>
+        </div>
+        <div class="connection-text">
+          <div class="connection-text-main" id="connStatusText">Disconnected</div>
+          <div class="connection-text-sub" id="connStatusSub">Ready to connect</div>
+        </div>
+      </div>
+
+      <div class="status-grid">
+        <div class="status-item">
+          <div class="status-label">Chip</div>
+          <div class="status-value" id="chipVal">
+            <span class="led" id="chipLed"></span>
+            <span id="chipText">—</span>
+          </div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Connection</div>
+          <div class="status-value" id="connVal">
+            <span class="led" id="connLed"></span>
+            <span id="connText">Waiting</span>
+          </div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Flash mode</div>
+          <div class="status-value" id="modeVal">
+            <span class="led" id="modeLed"></span>
+            <span id="modeText">Manual bootloader</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="connectBtn">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3a3 3 0 0 0-3 3v4a3 3 0 0 0 3 3h2.5a.5.5 0 0 0 0-1H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2.5a.5.5 0 0 0 0-1H5zm3.5 9a.5.5 0 0 0 0 1H11a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3H8.5a.5.5 0 0 0 0 1H11a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H8.5z"/><path d="M3 8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 0-1h-9A.5.5 0 0 0 3 8z"/></svg>
+          Connect device
+        </button>
+        <button class="btn btn-danger" id="disconnectBtn" disabled>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M10.854 5.146a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708 0l-1-1a.5.5 0 0 1 .708-.708l.646.647 1.646-1.647a.5.5 0 0 1 .708 0z"/><path d="M5 3a3 3 0 0 0-3 3v4a3 3 0 0 0 3 3h2.5a.5.5 0 0 0 0-1H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2.5a.5.5 0 0 0 0-1H5zm3.5 9a.5.5 0 0 0 0 1H11a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3H8.5a.5.5 0 0 0 0 1H11a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H8.5z"/></svg>
+          Disconnect
+        </button>
+      </div>
+    </div>
+
+    <!-- Firmware card -->
+    <div class="card" id="firmwareCard">
+      <div class="card-header">
+        <span class="card-title">Firmware</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="helper-text" id="loadingHint">Loading firmware list...</span>
+          <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px;" id="refreshBtn">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="mode-toggle">
+        <button class="mode-toggle-btn active" id="onlineBtn" onclick="setMode('online')">Online</button>
+        <button class="mode-toggle-btn" id="offlineBtn" onclick="setMode('offline')">Offline</button>
+      </div>
+
+      <!-- Online mode -->
+      <div id="onlineMode">
+        <div style="margin-bottom:12px;">
+          <div class="status-label" style="margin-bottom:8px;">Select firmware</div>
+          <div class="select-row">
+            <div class="select-wrap">
+              <select id="firmwareSelect" disabled>
+                <option value="">Loading firmware list...</option>
+              </select>
+              <svg class="select-arrow" width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
+            </div>
+            <button class="btn btn-primary" id="flashBtn" disabled>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.251.068a.5.5 0 0 1 .227.58L9.677 6.5H13a.5.5 0 0 1 .364.843l-8 8.5a.5.5 0 0 1-.842-.49L6.323 9.5H3a.5.5 0 0 1-.364-.843l8-8.5a.5.5 0 0 1 .615-.09z"/></svg>
+              Flash
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Offline mode -->
+      <div id="offlineMode" style="display:none;">
+        <div class="status-label" style="margin-bottom:8px;">Upload firmware (.bin)</div>
+        <label class="file-input-wrap" id="fileLabel">
+          <input type="file" id="fileInput" accept=".bin" />
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="color:var(--text-muted);flex-shrink:0"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg>
+          <span class="file-name" id="fileName">Choose .bin file or drag and drop</span>
+        </label>
+        <div style="margin-top:10px;">
+          <button class="btn btn-primary" id="flashOfflineBtn" disabled>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.251.068a.5.5 0 0 1 .227.58L9.677 6.5H13a.5.5 0 0 1 .364.843l-8 8.5a.5.5 0 0 1-.842-.49L6.323 9.5H3a.5.5 0 0 1-.364-.843l8-8.5a.5.5 0 0 1 .615-.09z"/></svg>
+            Flash firmware
+          </button>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div class="progress-wrap" id="progressWrap" style="display:none;">
+        <div class="progress-header">
+          <span id="progressLabel">Flashing...</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flash log card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Flash log</span>
+        <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px;" id="clearBtn">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 1a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1H3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V4h.5a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H10a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1H2.5zm3 4a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 .5-.5zM8 5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7A.5.5 0 0 1 8 5zm3 .5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 1 0z"/></svg>
+          Clear
+        </button>
+      </div>
+      <div class="terminal" id="terminal">
+        <div class="terminal-empty" id="terminalEmpty">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="opacity:0.4"><path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9zM3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2z"/><path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z"/></svg>
+          Log output will appear here
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page -->
+
+  <!-- esptool-js from CDN -->
+  <script type="module">
+    // ─── esptool-js imports ───────────────────────────────────────────────────
+    // Using ESM from unpkg. Espressif's esptool-js v0.4+
+    let ESPLoader, Transport;
+    try {
+      const mod = await import('https://unpkg.com/esptool-js@0.4.3/bundle.js');
+      ESPLoader = mod.ESPLoader;
+      Transport = mod.Transport;
+    } catch (e) {
+      log('warn', 'Could not load esptool-js from CDN: ' + e.message);
+    }
+
+    // ─── State ────────────────────────────────────────────────────────────────
+    let device = null;
+    let transport = null;
+    let esploader = null;
+    let firmwareList = [];
+    let selectedFile = null;
+    let flashMode = 'online';
+    let isFlashing = false;
+
+    // ─── DOM refs ─────────────────────────────────────────────────────────────
+    const connectBtn     = document.getElementById('connectBtn');
+    const disconnectBtn  = document.getElementById('disconnectBtn');
+    const ledWrap        = document.getElementById('ledWrap');
+    const connStatusText = document.getElementById('connStatusText');
+    const connStatusSub  = document.getElementById('connStatusSub');
+    const chipText       = document.getElementById('chipText');
+    const connText       = document.getElementById('connText');
+    const modeText       = document.getElementById('modeText');
+    const chipLed        = document.getElementById('chipLed');
+    const connLed        = document.getElementById('connLed');
+    const modeLed        = document.getElementById('modeLed');
+    const firmwareSelect = document.getElementById('firmwareSelect');
+    const flashBtn       = document.getElementById('flashBtn');
+    const flashOfflineBtn= document.getElementById('flashOfflineBtn');
+    const fileInput      = document.getElementById('fileInput');
+    const fileName       = document.getElementById('fileName');
+    const clearBtn       = document.getElementById('clearBtn');
+    const refreshBtn     = document.getElementById('refreshBtn');
+    const loadingHint    = document.getElementById('loadingHint');
+    const progressWrap   = document.getElementById('progressWrap');
+    const progressFill   = document.getElementById('progressFill');
+    const progressPct    = document.getElementById('progressPct');
+    const progressLabel  = document.getElementById('progressLabel');
+    const terminal       = document.getElementById('terminal');
+    const terminalEmpty  = document.getElementById('terminalEmpty');
+    const browserBanner  = document.getElementById('browserBanner');
+    const browserMsg     = document.getElementById('browserMsg');
+
+    // ─── Theme ───────────────────────────────────────────────────────────────
+    const themeToggle = document.getElementById('themeToggle');
+    const savedTheme = localStorage.getItem('makcu-theme') || 'dark';
+    setTheme(savedTheme);
+
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      setTheme(current === 'dark' ? 'light' : 'dark');
+    });
+
+    function setTheme(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      themeToggle.textContent = t === 'dark' ? '🌙' : '☀️';
+      localStorage.setItem('makcu-theme', t);
+    }
+
+    // ─── Browser check ───────────────────────────────────────────────────────
+    if (!('serial' in navigator) && !('usb' in navigator)) {
+      browserBanner.classList.add('visible');
+    }
+
+    const serialLib = ('serial' in navigator) ? navigator.serial : null;
+    if (!serialLib) {
+      connectBtn.disabled = true;
+      browserMsg.textContent = 'Web Serial API not supported. Please use Brave or Chrome 89+.';
+      browserBanner.classList.add('visible');
+    }
+
+    // ─── Logging ─────────────────────────────────────────────────────────────
+    function log(type, msg) {
+      terminalEmpty.style.display = 'none';
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      const now = new Date();
+      const ts = now.toTimeString().slice(0,8);
+      line.innerHTML = `<span class="log-time">${ts}</span><span class="log-msg ${type}">${escapeHtml(msg)}</span>`;
+      terminal.appendChild(line);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    clearBtn.addEventListener('click', () => {
+      terminal.innerHTML = '';
+      terminal.appendChild(terminalEmpty);
+      terminalEmpty.style.display = 'flex';
+    });
+
+    // ─── Connection state UI ─────────────────────────────────────────────────
+    function setConnectionState(state) {
+      ledWrap.className = 'connection-led-wrap';
+      chipLed.className = 'led';
+      connLed.className = 'led';
+      modeLed.className = 'led';
+
+      switch (state) {
+        case 'disconnected':
+          connStatusText.textContent = 'Disconnected';
+          connStatusSub.textContent = 'Ready to connect';
+          chipText.textContent = '—';
+          connText.textContent = 'Waiting';
+          modeText.textContent = 'Manual bootloader';
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          flashBtn.disabled = true;
+          firmwareSelect.disabled = true;
+          flashOfflineBtn.disabled = true;
+          break;
+
+        case 'connecting':
+          ledWrap.classList.add('state-connecting');
+          connLed.classList.add('yellow');
+          connStatusText.textContent = 'Connecting…';
+          connStatusSub.textContent = 'Waiting for device';
+          connText.textContent = 'Connecting';
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          break;
+
+        case 'connected-flash':
+          ledWrap.classList.add('state-flash');
+          chipLed.classList.add('blue');
+          connLed.classList.add('green');
+          modeLed.classList.add('blue');
+          connStatusText.textContent = 'Connected (Flash mode)';
+          connStatusSub.textContent = device?.getInfo?.()?.usbProductName ?? 'ESP device ready to flash';
+          connText.textContent = 'Connected';
+          modeText.textContent = 'Flash mode';
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          firmwareSelect.disabled = false;
+          flashBtn.disabled = false;
+          flashOfflineBtn.disabled = !selectedFile;
+          break;
+
+        case 'connected-normal':
+          ledWrap.classList.add('state-connected');
+          chipLed.classList.add('green');
+          connLed.classList.add('green');
+          modeLed.classList.add('yellow');
+          connStatusText.textContent = 'Connected (Normal mode)';
+          connStatusSub.textContent = 'Reconnect in flash mode to flash';
+          modeText.textContent = 'Normal mode';
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          break;
+
+        case 'error':
+          ledWrap.classList.add('state-error');
+          connLed.classList.add('red');
+          connStatusText.textContent = 'Connection error';
+          connStatusSub.textContent = 'Check device and try again';
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          flashBtn.disabled = true;
+          break;
+      }
+    }
+
+    setConnectionState('disconnected');
+
+    // ─── Connect ─────────────────────────────────────────────────────────────
+    connectBtn.addEventListener('click', async () => {
+      if (!serialLib) { alert('Web Serial not supported. Use Brave or Chrome.'); return; }
+      try {
+        setConnectionState('connecting');
+        log('info', 'Requesting serial port…');
+        device = await serialLib.requestPort();
+        transport = new Transport(device, true);
+
+        const loaderOpts = {
+          transport,
+          baudrate: 921600,
+          terminal: {
+            clean() {},
+            writeLine(data) { log('', data); },
+            write(data)     { /* suppress partial lines */ },
+          },
+        };
+
+        log('info', 'Connecting to ESP device…');
+        esploader = new ESPLoader(loaderOpts);
+        await esploader.main();
+
+        const chip = esploader.chip?.CHIP_NAME ?? 'Unknown';
+        chipText.textContent = chip;
+        log('success', `Connected: ${chip}`);
+        setConnectionState('connected-flash');
+
+      } catch (err) {
+        if (err.name === 'NotFoundError') {
+          log('warn', 'No device selected.');
+          setConnectionState('disconnected');
+        } else {
+          log('error', 'Connection failed: ' + err.message);
+          setConnectionState('error');
+        }
+        device = null; transport = null; esploader = null;
+      }
+    });
+
+    // ─── Disconnect ───────────────────────────────────────────────────────────
+    disconnectBtn.addEventListener('click', async () => {
+      try {
+        if (transport) await transport.disconnect();
+      } catch (_) {}
+      device = null; transport = null; esploader = null;
+      log('', 'Disconnected.');
+      setConnectionState('disconnected');
+    });
+
+    // ─── Firmware mode toggle ─────────────────────────────────────────────────
+    window.setMode = function(mode) {
+      flashMode = mode;
+      document.getElementById('onlineBtn').classList.toggle('active', mode === 'online');
+      document.getElementById('offlineBtn').classList.toggle('active', mode === 'offline');
+      document.getElementById('onlineMode').style.display = mode === 'online' ? '' : 'none';
+      document.getElementById('offlineMode').style.display = mode === 'offline' ? '' : 'none';
+    };
+
+    // ─── Firmware list ────────────────────────────────────────────────────────
+    async function loadFirmwareList() {
+      loadingHint.textContent = 'Loading firmware list…';
+      firmwareSelect.innerHTML = '<option value="">Loading…</option>';
+      firmwareSelect.disabled = true;
+
+      try {
+        const res = await fetch('https://api.github.com/repos/terrafirma2021/MAKCM_v2_files/contents/');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        firmwareList = data
+          .filter(f => f.name.endsWith('.bin'))
+          .sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
+
+        firmwareSelect.innerHTML = '<option value="">— Select firmware —</option>';
+        const left  = firmwareList.filter(f => /LEFT/i.test(f.name));
+        const right = firmwareList.filter(f => /RIGHT/i.test(f.name));
+        const other = firmwareList.filter(f => !/LEFT|RIGHT/i.test(f.name));
+
+        function addGroup(label, items) {
+          if (!items.length) return;
+          const g = document.createElement('optgroup');
+          g.label = label;
+          items.forEach(f => {
+            const o = document.createElement('option');
+            o.value = f.download_url;
+            o.textContent = f.name;
+            g.appendChild(o);
+          });
+          firmwareSelect.appendChild(g);
+        }
+
+        addGroup('USB 1 – Left Side', left);
+        addGroup('USB 3 – Right Side', right);
+        addGroup('Other', other);
+
+        loadingHint.textContent = `${firmwareList.length} firmware file${firmwareList.length !== 1 ? 's' : ''} found`;
+        if (esploader) firmwareSelect.disabled = false;
+        log('info', `Loaded ${firmwareList.length} firmware files.`);
+
+      } catch (err) {
+        loadingHint.textContent = 'Failed to load firmware list';
+        firmwareSelect.innerHTML = '<option value="">Could not load list</option>';
+        log('error', 'Failed to fetch firmware list: ' + err.message);
+      }
+    }
+
+    loadFirmwareList();
+    refreshBtn.addEventListener('click', loadFirmwareList);
+
+    // ─── Progress ─────────────────────────────────────────────────────────────
+    function setProgress(pct, label) {
+      progressWrap.style.display = pct > 0 ? '' : 'none';
+      progressFill.style.width = pct + '%';
+      progressPct.textContent = Math.round(pct) + '%';
+      if (label) progressLabel.textContent = label;
+    }
+
+    // ─── Flash ────────────────────────────────────────────────────────────────
+    async function doFlash(buffer, name) {
+      if (!esploader) { log('error', 'No device connected.'); return; }
+      if (isFlashing) return;
+      isFlashing = true;
+      flashBtn.disabled = true;
+      flashOfflineBtn.disabled = true;
+
+      try {
+        const data = Array.from(new Uint8Array(buffer)).map(b => String.fromCharCode(b)).join('');
+        const flashOptions = {
+          fileArray: [{ data, address: 0x0 }],
+          flashSize: 'keep',
+          eraseAll: false,
+          compress: true,
+          flashMode: esploader.chip?.flashMode ?? 'dio',
+          flashFreq: esploader.chip?.flashFreq ?? '40m',
+          reportProgress(fileIndex, written, total) {
+            setProgress((written / total) * 100, 'Flashing…');
+          },
+        };
+
+        log('info', `Starting flash: ${name}`);
+        setProgress(0.1, 'Starting…');
+        await esploader.writeFlash(flashOptions);
+        await esploader.after();
+        setProgress(100, 'Complete!');
+        log('success', `Flash complete: ${name}`);
+        setTimeout(() => setProgress(0), 2500);
+
+      } catch (err) {
+        log('error', 'Flash error: ' + err.message);
+        setProgress(0);
+      } finally {
+        isFlashing = false;
+        if (esploader) {
+          flashBtn.disabled = false;
+          if (selectedFile) flashOfflineBtn.disabled = false;
+        }
+      }
+    }
+
+    flashBtn.addEventListener('click', async () => {
+      const url = firmwareSelect.value;
+      if (!url) { log('warn', 'No firmware selected.'); return; }
+      const name = firmwareSelect.options[firmwareSelect.selectedIndex].textContent;
+      log('info', `Downloading ${name}…`);
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const buf = await res.arrayBuffer();
+        log('info', 'Download complete, flashing…');
+        await doFlash(buf, name);
+      } catch (err) {
+        log('error', 'Download error: ' + err.message);
+      }
+    });
+
+    flashOfflineBtn.addEventListener('click', async () => {
+      if (!selectedFile) { log('warn', 'No file selected.'); return; }
+      const buf = await selectedFile.arrayBuffer();
+      await doFlash(buf, selectedFile.name);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      selectedFile = e.target.files[0] ?? null;
+      fileName.textContent = selectedFile ? selectedFile.name : 'Choose .bin file or drag and drop';
+      fileName.classList.toggle('selected', !!selectedFile);
+      flashOfflineBtn.disabled = !selectedFile || !esploader;
+    });
+
+    // Drag and drop
+    const fileLabel = document.getElementById('fileLabel');
+    fileLabel.addEventListener('dragover', e => { e.preventDefault(); fileLabel.style.borderColor = 'var(--accent)'; });
+    fileLabel.addEventListener('dragleave', () => { fileLabel.style.borderColor = ''; });
+    fileLabel.addEventListener('drop', e => {
+      e.preventDefault();
+      fileLabel.style.borderColor = '';
+      const f = e.dataTransfer.files[0];
+      if (f && f.name.endsWith('.bin')) {
+        selectedFile = f;
+        fileName.textContent = f.name;
+        fileName.classList.add('selected');
+        flashOfflineBtn.disabled = !esploader;
+      }
+    });
+
+    log('info', 'MAKCU Flasher ready. Connect your device in flash mode.');
+  </script>
+</body>
+</html>
